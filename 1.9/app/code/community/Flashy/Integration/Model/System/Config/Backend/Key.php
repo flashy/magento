@@ -42,6 +42,11 @@ class Flashy_Integration_Model_System_Config_Backend_Key extends Mage_Core_Model
             $store_name = Mage::getStoreConfig('general/store_information/name', $scope_id);
             $base_url = Mage::app()->getStore($scope_id)->getBaseUrl(Mage_Core_Model_Store::URL_TYPE_WEB);
 
+            if(empty($store_name)){
+                $store = Mage::getModel('core/store')->load($scope_id);
+                $store_name = $store->getName();
+            }
+
             $data = array(
                 "profile" => array(
                     "from_name" => $store_name,

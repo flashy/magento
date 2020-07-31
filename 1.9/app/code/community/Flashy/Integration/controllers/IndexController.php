@@ -124,7 +124,7 @@ class Flashy_Integration_IndexController extends Mage_Core_Controller_Front_Acti
                 $flashy_key = Mage::getStoreConfig('flashy/flashy/flashy_key', $store_id);
                 $base_url = Mage::app()->getStore($store_id)->getBaseUrl(Mage_Core_Model_Store::URL_TYPE_WEB);
                 $nextpage = $current_page + 1;
-                $next_url = $base_url . "flashy?export=producrs&store_id=$store_id&limit=$limit&page=$nextpage&flashy_key=$flashy_key";
+                $next_url = $base_url . "flashy?export=products&store_id=$store_id&limit=$limit&page=$nextpage&flashy_key=$flashy_key";
             }
             if($total > $limit){
                 $flashy_pagination = true;
@@ -140,7 +140,7 @@ class Flashy_Integration_IndexController extends Mage_Core_Controller_Front_Acti
             "count"=> count($export_products),
             "total"=> $total,
             "flashy_pagination"=> $flashy_pagination,
-            "next_url"=> $next_url,
+            "next_page"=> $next_url,
             "success" => true
         );
     }
@@ -292,7 +292,7 @@ class Flashy_Integration_IndexController extends Mage_Core_Controller_Front_Acti
             "count"=> count($export_customers),
             "total"=> $total,
             "flashy_pagination"=> $flashy_pagination,
-            "next_url"=> $next_url,
+            "next_page"=> $next_url,
             "success" => true
         );
     }
@@ -379,7 +379,7 @@ class Flashy_Integration_IndexController extends Mage_Core_Controller_Front_Acti
             "count"=> count($export_orders),
             "total"=> $total,
             "flashy_pagination"=> $flashy_pagination,
-            "next_url"=> $next_url,
+            "next_page"=> $next_url,
             "success" => true
         );
     }
