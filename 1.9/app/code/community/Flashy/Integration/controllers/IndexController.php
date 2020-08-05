@@ -93,7 +93,7 @@ class Flashy_Integration_IndexController extends Mage_Core_Controller_Front_Acti
                     'tags'			=> $_product->getMetaKeyword()
                 );
 
-                if( $_product->getImage() && $_product->getImage() != 'no_selection' ) {
+                if( !empty($_product->getImageUrl()) ) {
                     $export_products[$i]['image_link'] = $_product->getImageUrl();
                 }
 
@@ -303,8 +303,9 @@ class Flashy_Integration_IndexController extends Mage_Core_Controller_Front_Acti
         } else {
             $orders = Mage::getModel('sales/order')->setStoreId($store_id)->getCollection();
         }
-        if( $store_id != 0 ) {
-            $orders->addStoreFilter($store_id);
+        //filter by store id
+        if($store_id > 0) {
+            $orders->addFieldToFilter('main_table.store_id', ['eq' => $store_id]);
         }
         return $orders->getSize();
     }
