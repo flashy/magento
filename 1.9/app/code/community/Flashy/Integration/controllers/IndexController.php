@@ -89,9 +89,14 @@ class Flashy_Integration_IndexController extends Mage_Core_Controller_Front_Acti
                     'title'			=> $_product->getName(),
                     'description'	=> $_product->getShortDescription(),
                     'price'			=> $_product->getPrice(),
+                    'price'			=> $_product->getPrice(),
+                    'final_price'	=> $_product->getFinalPrice(),
+                    'sale_price'	=> $_product->getSpecialPrice(),
+                    'sale_price_effective_date'	=> date(DateTime::ISO8601, strtotime($_product->getSpecialFromDate())).'/'.date(DateTime::ISO8601, strtotime($_product->getSpecialToDate())),
                     'currency'		=> $currency,
                     'tags'			=> $_product->getMetaKeyword()
                 );
+
 
                 if( !empty($_product->getImageUrl()) ) {
                     $export_products[$i]['image_link'] = $_product->getImageUrl();
