@@ -28,15 +28,26 @@ class Flashy_Integration_Block_Index extends Mage_Core_Block_Template {
         $order = Mage::getModel('sales/order')->load($orderId);
         $h->addLog('step3: order loaded');
 
-        $customer = Mage::getModel('customer/customer')->load($order->getCustomerId());
-        $h->addLog('step4: customer loaded');
+        if($order->getCustomerId()) {
+            $customer = Mage::getModel('customer/customer')->load($order->getCustomerId());
+            $h->addLog('step4: customer loaded');
 
-        $contactData = [
-            'email' => $customer->getEmail(),
-            'first_name' => $customer->getFirstname(),
-            'last_name' => $customer->getLastname(),
-            'gender' => $customer->getGender()
-        ];
+            $contactData = [
+                'email' => $customer->getEmail(),
+                'first_name' => $customer->getFirstname(),
+                'last_name' => $customer->getLastname(),
+                'gender' => $customer->getGender()
+            ];
+        } else {
+            $billingAddress = $order->getBillingAddress();
+            $h->addLog('step4: billingAddress loaded');
+            $contactData = [
+                'email' => $billingAddress->getEmail(),
+                'first_name' => $billingAddress->getFirstname(),
+                'last_name' => $billingAddress->getLastname(),
+                'gender' => $billingAddress->getGender()
+            ];
+        }
         $h->addLog('step5: Contact data ' . print_r($contactData, true));
 
         $this->flashy->contacts->create($contactData);
@@ -62,8 +73,11 @@ class Flashy_Integration_Block_Index extends Mage_Core_Block_Template {
             "order_id"  => $orderId,
             "value"   => $total,
             "content_ids"  => $products,
+            "status" => $order->getStatus(),
+            "email" => $contactData['email'],
             "currency"  => $currency
         );
+
         $h->addLog('step11: data=' . print_r($data, true));
 
         return $data;

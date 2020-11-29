@@ -25,6 +25,7 @@ class Flashy_Integration_Model_Observer
 
     public function salesOrderChange(Varien_Event_Observer $observer)
     {
+        Mage::helper("flashy")->addLog("salesOrderChange");
         $flashy_key = Mage::getStoreConfig('flashy/flashy/flashy_key');
         if(Mage::getStoreConfig('flashy/flashy/active') && !empty($flashy_key)) {
 
@@ -64,6 +65,91 @@ class Flashy_Integration_Model_Observer
 
                 Mage::helper("flashy")->addLog(json_encode($track));
             }
+        }
+    }
+    public function salesOrderPlaceAfter(Varien_Event_Observer $observer)
+    {
+        $h = Mage::helper("flashy");
+        $h->addLog('salesOrderPlaceAfter');
+        $flashy_key = Mage::getStoreConfig('flashy/flashy/flashy_key');
+        if(Mage::getStoreConfig('flashy/flashy/active') && !empty($flashy_key) && Mage::getStoreConfig('flashy/flashy/purchase')) {
+
+            $this->flashy = new Flashy_Flashy($flashy_key);
+
+            $order = $observer->getEvent()->getOrder();
+
+            $account_id = Mage::getStoreConfig('flashy/flashy/flashy_id');
+
+            if ($account_id == null) {
+                if ($info['success'] == true) {
+                    $info = $this->flashy->account->info();
+
+                    Mage::getConfig()->saveConfig('flashy/flashy/flashy_id', $info['account']['id'], 'default', 0);
+
+                    $account_id = $info['account']['id'];
+                }
+            }
+
+            if($order->getCustomerId()) {
+                $customer = Mage::getModel('customer/customer')->load($order->getCustomerId());
+                $h->addLog('step4: customer loaded');
+
+                $contactData = [
+                    'email' => $customer->getEmail(),
+                    'first_name' => $customer->getFirstname(),
+                    'last_name' => $customer->getLastname(),
+                    'gender' => $customer->getGender()
+                ];
+            } else {
+                $billingAddress = $order->getBillingAddress();
+                $h->addLog('step4: billingAddress loaded');
+                $contactData = [
+                    'email' => $billingAddress->getEmail(),
+                    'first_name' => $billingAddress->getFirstname(),
+                    'last_name' => $billingAddress->getLastname(),
+                    'gender' => $billingAddress->getGender()
+                ];
+            }
+
+            $h->addLog('step5: Contact data ' . print_r($contactData, true));
+
+            $this->flashy->contacts->create($contactData);
+            $h->addLog('step6: flashy contact created');
+
+            $total = (float) $order->getSubtotal();
+            $h->addLog('step7: order total=' . $total);
+
+            $items = $order->getAllItems();
+            $h->addLog('step8: getting order items');
+
+            $products = [];
+
+            foreach($items as $i):
+                $products[] = $i->getProductId();
+            endforeach;
+            $h->addLog('step9: getting product ids');
+
+            $currency = Mage::app()->getStore(Mage::app()->getStore()->getStoreId())->getCurrentCurrencyCode();
+            $h->addLog('step10: currency='.$currency);
+
+            $data = array(
+                "account_id" => $account_id,
+                "email" => $contactData['email'],
+                "order_id"  => $order->getId(),
+                "value"   => $total,
+                "content_ids"  => $products,
+                "status" => $order->getStatus(),
+                "currency"  => $currency
+            );
+
+            $h->addLog('step11: data=' . print_r($data, true));
+
+            //$this->flashy->api->events->track("Purchase", $data);
+            $track = $this->flashy->thunder->track($account_id, $contactData['email'], "Purchase", $data);
+
+            $h->addLog('step12: Purchase sent.');
+            $h->addLog(json_encode($track));
+
         }
     }
 

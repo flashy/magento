@@ -10,6 +10,7 @@
             <flashy>
                 <active>1</active>
                 <log>1</log>
+                <purchase>1</purchase>
                 <flashy_key></flashy_key>
                 <flashy_connected>0</flashy_connected>
             </flashy>
@@ -78,6 +79,15 @@
                     </test_suppliernotification>
                 </observers>
             </sales_order_save_after>
+            <sales_order_place_after>
+                <observers>
+                    <flashy_sales_order_place_after>
+                        <type>singleton</type>
+                        <class>flashy/observer</class>
+                        <method>salesOrderPlaceAfter</method>
+                    </flashy_sales_order_place_after>
+                </observers>
+            </sales_order_place_after>
             <checkout_cart_save_after>
                 <observers>
                     <flashy_cart_hash>
