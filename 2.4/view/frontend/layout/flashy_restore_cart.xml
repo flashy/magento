@@ -1,0 +1,11 @@
+<?xml version="1.0" ?>
+<page layout="1column" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="urn:magento:framework:View/Layout/etc/page_configuration.xsd">
+    <head>
+        <css src="Flashy_Integration::css/restore.css"/>
+    </head>
+    <body>
+        <referenceContainer name="content">
+            <block class="Flashy\Integration\Block\Restore\Cart" name="restore.cart" template="Flashy_Integration::restore/cart.phtml"/>
+        </referenceContainer>
+    </body>
+</page>

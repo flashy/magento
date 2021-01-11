@@ -1,0 +1,50 @@
+<?xml version="1.0" ?>
+<config xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="urn:magento:module:Magento_Config:etc/system_file.xsd">
+	<system>
+		<section id="flashy" showInDefault="1" showInStore="1" showInWebsite="1" sortOrder="1100" translate="label">
+			<label>Flashy Integration</label>
+			<tab>general</tab>
+			<resource>Flashy_Integration::config_flashy_integration</resource>
+			<group id="flashy" showInDefault="1" showInStore="1" showInWebsite="1" sortOrder="10" translate="label">
+				<label>Flashy Integration</label>
+				<field id="active" translate="label" type="select" sortOrder="1" showInDefault="1" showInWebsite="1" showInStore="1">
+					<label>Enabled</label>
+					<source_model>Magento\Config\Model\Config\Source\Yesno</source_model>
+				</field>
+				<field id="purchase" translate="label" type="select" sortOrder="3" showInDefault="1" showInWebsite="1" showInStore="1">
+					<label>Send purchase before payment</label>
+					<source_model>Magento\Config\Model\Config\Source\Yesno</source_model>
+				</field>
+				<field id="log" translate="label" type="select" sortOrder="5" showInDefault="1" showInWebsite="1" showInStore="1">
+					<label>Enabled logging</label>
+					<source_model>Magento\Config\Model\Config\Source\Yesno</source_model>
+				</field>
+				<field id="flashy_key" showInDefault="1" showInStore="1" showInWebsite="1" sortOrder="10" translate="label" type="text">
+					<label>API Key</label>
+					<comment>Enter the API Key provided by Flashy.</comment>
+					<backend_model>Flashy\Integration\Model\Config\Backend\FlashyKey</backend_model>
+				</field>
+				<field id="flashy_connected" showInDefault="1" showInStore="1" showInWebsite="1" sortOrder="20" translate="label" type="text">
+					<label>Connected with Flashy</label>
+					<frontend_model>Flashy\Integration\Block\Adminhtml\System\Config\Connected</frontend_model>
+				</field>
+			</group>
+			<group id="flashy_lists" showInDefault="1" showInStore="1" showInWebsite="1" sortOrder="20" translate="label">
+				<label>Flashy Lists</label>
+				<field id="flashy_list" showInDefault="1" showInStore="1" showInWebsite="1" sortOrder="10" translate="label" type="select">
+					<label>Flashy List</label>
+					<comment>Assign list to store from Flashy.</comment>
+					<source_model>Flashy\Integration\Model\Config\Source\FlashyList</source_model>
+				</field>
+			</group>
+			<group id="flashy_catalog" showInDefault="1" showInStore="1" showInWebsite="1" sortOrder="30" translate="label">
+				<label>Flashy Urls</label>
+				<field id="flashy_catalog_url" showInDefault="1" showInStore="1" showInWebsite="1" sortOrder="10" translate="label" type="text">
+					<label>Flashy Urls</label>
+					<comment>Urls used from Flashy.</comment>
+					<frontend_model>Flashy\Integration\Block\Adminhtml\System\Config\Url</frontend_model>
+				</field>
+			</group>
+		</section>
+	</system>
+</config>

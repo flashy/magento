@@ -1,0 +1,35 @@
+<?php
+/**
+ * @var $block \Flashy\Integration\Block\Tracking
+ */
+?>
+<?php if( $block->getFlashyId() ) : ?>
+	<script type="text/javascript">
+		//<![CDATA[
+			'use strict'; (function (a, b, c) { if (!a.flashy) { a.flashy = function () { a.flashy.event && a.flashy.event(arguments), a.flashy.queue.push(arguments) }, a.flashy.queue = []; var d = document.getElementsByTagName('script')[0], e = document.createElement(b); e.src = c, e.async = !0, d.parentNode.insertBefore(e, d) } })(window, 'script', 'https://js.flashyapp.com/thunder.js'), flashy('init', <?php echo $block->getFlashyId(); ?>);
+            flashy('ViewContent', <?php echo json_encode($block->getProductDetails()); ?>);
+
+			<?php
+				$flashy_id = $block->getFlashyIdCookie();
+				if( $block->customerIsLoggedIn() && !$flashy_id ) {
+					?>
+					flashy('setCustomer', {
+						"email": "<?php echo base64_encode($block->getCustomerEmail()); ?>"
+					});
+			<?php }  ?>
+		//]]>
+	</script>
+	<?php if( $block->getCart() ) : ?>
+		<script type="text/javascript">
+			//<![CDATA[
+				<?php
+					$cart_cache = $block->getFlashyCartCache();
+					if( base64_encode($block->getCart()) !== $cart_cache ) : ?>
+						flashy('UpdateCart', <?php echo $block->getCart(); ?>);
+			    		<?php
+                        $block->setFlashyCartCache();
+			    	endif; ?>
+			//]]>
+		</script>
+	<?php endif; ?>
+<?php endif; ?>
