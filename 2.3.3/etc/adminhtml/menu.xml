@@ -1,0 +1,8 @@
+<?xml version="1.0" ?>
+<config xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="urn:magento:module:Magento_Backend:etc/menu.xsd">
+	<menu>
+		<add id="Flashy::flashy" module="Flashy_Integration" resource="Magento_Backend::content" sortOrder="9999" title="Flashy"/>
+		<add action="flashy/productexport" id="Flashy_Integration::productexport" module="Flashy_Integration" parent="Flashy::flashy" resource="Flashy_Integration::productexport" sortOrder="10" title="Flashy Export Products"/>
+		<add action="adminhtml/system_config/edit/section/flashy" id="Flashy_Integration::settings" module="Flashy_Integration" parent="Flashy::flashy" resource="Flashy_Integration::settings" sortOrder="20" title="Flashy Settings"/>
+	</menu>
+</config>
