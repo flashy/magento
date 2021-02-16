@@ -1,0 +1,17 @@
+.admin__menu .level-0.item-flashy > a:before {
+    content: url('../images/flashy-icon.png');
+}
+.flashy-connected{
+    color:#00cc00;
+}
+.flashy-connected::before{
+    content: '\e62d';
+    font-family: 'Admin Icons';
+}
+.flashy-not-connected{
+    color:#cc0000;
+}
+.flashy-not-connected::before{
+    content: '\e623';
+    font-family: 'Admin Icons';
+}

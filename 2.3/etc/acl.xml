@@ -1,0 +1,20 @@
+<?xml version="1.0" ?>
+<config xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="urn:magento:framework:Acl/etc/acl.xsd">
+	<acl>
+		<resources>
+			<resource id="Magento_Backend::admin">
+				<resource id="Magento_Backend::stores">
+					<resource id="Magento_Backend::stores_settings">
+						<resource id="Magento_Config::config">
+							<resource id="Flashy_Integration::config_flashy_integration" title="Flashy"/>
+						</resource>
+					</resource>
+				</resource>
+				<resource id="Flashy_Integration::flashy" sortOrder="10" title="Flashy">
+					<resource id="Flashy_Integration::productexport" sortOrder="10" title="Flashy Export Products"/>
+					<resource id="Flashy_Integration::settings" sortOrder="20" title="Flashy Settings"/>
+				</resource>
+			</resource>
+		</resources>
+	</acl>
+</config>
