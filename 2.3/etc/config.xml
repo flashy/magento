@@ -3,6 +3,9 @@
 	<default>
 		<flashy>
 			<flashy>
+				<active>1</active>
+				<log>1</log>
+				<purchase>1</purchase>
 				<flashy_key/>
 				<flashy_connected/>
 			</flashy>

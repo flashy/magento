@@ -36,6 +36,17 @@ class Index extends \Magento\Framework\View\Element\Template
     }
 
     /**
+     * Get flashy purchase.
+     *
+     * @return mixed
+     * @throws \Magento\Framework\Exception\NoSuchEntityException
+     */
+    public function getFlashyPurchase()
+    {
+        return $this->helper->getFlashyPurchase();
+    }
+
+    /**
      * Get current order data.
      *
      * @return array

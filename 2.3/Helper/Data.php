@@ -113,6 +113,10 @@ class Data extends \Magento\Framework\App\Helper\AbstractHelper
      * @var \Psr\Log\LoggerInterface
      */
     protected $_logger;
+    /**
+     * @var \Flashy\Integration\Logger\Logger
+     */
+    protected $_flashyLogger;
 
     /**
      * Data constructor.
@@ -137,6 +141,7 @@ class Data extends \Magento\Framework\App\Helper\AbstractHelper
      * @param \Magento\Framework\Data\Form\FormKey $formKey
      * @param \Magento\Catalog\Helper\ImageFactory $imageHelperFactory
      * @param \Psr\Log\LoggerInterface $logger
+     * @param \Flashy\Integration\Logger\Logger $flashyLogger
      */
     public function __construct(
         \Magento\Framework\App\Helper\Context $context,
@@ -159,7 +164,8 @@ class Data extends \Magento\Framework\App\Helper\AbstractHelper
         \Magento\Catalog\Model\ProductFactory $productFactory,
         \Magento\Framework\Data\Form\FormKey $formKey,
         \Magento\Catalog\Helper\ImageFactory $imageHelperFactory,
-        \Psr\Log\LoggerInterface $logger
+        \Psr\Log\LoggerInterface $logger,
+        \Flashy\Integration\Logger\Logger $flashyLogger
     )
     {
         $this->_scopeConfig = $scopeConfig;
@@ -182,6 +188,7 @@ class Data extends \Magento\Framework\App\Helper\AbstractHelper
         $this->_formKey = $formKey;
         $this->_imageHelperFactory = $imageHelperFactory;
         $this->_logger = $logger;
+        $this->_flashyLogger = $flashyLogger;
         parent::__construct($context);
     }
 
@@ -210,6 +217,17 @@ class Data extends \Magento\Framework\App\Helper\AbstractHelper
     }
 
     /**
+     * Get flashy active.
+     *
+     * @return mixed
+     * @throws \Magento\Framework\Exception\NoSuchEntityException
+     */
+    public function getFlashyActive()
+    {
+        return $this->_scopeConfig->getValue('flashy/flashy/active', \Magento\Store\Model\ScopeInterface::SCOPE_STORE, $this->_storeManager->getStore()->getId());
+    }
+
+    /**
      * Get flashy id from Flashy.
      *
      * @return mixed
@@ -217,7 +235,33 @@ class Data extends \Magento\Framework\App\Helper\AbstractHelper
      */
     public function getFlashyId()
     {
-        return $this->_scopeConfig->getValue('flashy/flashy/flashy_id', \Magento\Store\Model\ScopeInterface::SCOPE_STORE, $this->_storeManager->getStore()->getId());
+        if($this->getFlashyActive()) {
+            return $this->_scopeConfig->getValue('flashy/flashy/flashy_id', \Magento\Store\Model\ScopeInterface::SCOPE_STORE, $this->_storeManager->getStore()->getId());
+        } else {
+            return false;
+        }
+    }
+
+    /**
+     * Get flashy purchase from Config.
+     *
+     * @return mixed
+     * @throws \Magento\Framework\Exception\NoSuchEntityException
+     */
+    public function getFlashyPurchase()
+    {
+        return $this->_scopeConfig->getValue('flashy/flashy/purchase', \Magento\Store\Model\ScopeInterface::SCOPE_STORE, $this->_storeManager->getStore()->getId());
+    }
+
+    /**
+     * Get flashy log from Config.
+     *
+     * @return mixed
+     * @throws \Magento\Framework\Exception\NoSuchEntityException
+     */
+    public function getFlashyLog()
+    {
+        return $this->_scopeConfig->getValue('flashy/flashy/log', \Magento\Store\Model\ScopeInterface::SCOPE_STORE, $this->_storeManager->getStore()->getId());
     }
 
     /**
@@ -309,6 +353,7 @@ class Data extends \Magento\Framework\App\Helper\AbstractHelper
      */
     public function getOrderDetails()
     {
+        $this->addLog('getOrderDetails');
         $data = array();
         try {
             $this->flashy = new Flashy($this->getFlashyKey(\Magento\Store\Model\ScopeInterface::SCOPE_STORE, $this->_storeManager->getStore()->getId()));
@@ -317,30 +362,109 @@ class Data extends \Magento\Framework\App\Helper\AbstractHelper
 
             $order = $this->_orderFactory->create()->loadByIncrementId($orderId);
 
-            $this->flashy->contacts->create([
+            $contactData = [
                 'email' => $order->getCustomerEmail(),
                 'first_name' => $order->getShippingAddress()->getFirstname(),
                 'last_name' => $order->getShippingAddress()->getLastname(),
                 'gender' => $order->getCustomerGender()
-            ]);
+            ];
+
+            $this->addLog('Contact Data ' . print_r($contactData, true));
+
+            $this->flashy->contacts->create($contactData);
+            $this->addLog('Flashy contact created');
+
+            $total = (float) $order->getSubtotal();
+            $this->addLog('Order total=' . $total);
 
             $items = $order->getAllItems();
+            $this->addLog('Getting order items');
 
             $products = [];
 
             foreach ($items as $i):
                 $products[] = $i->getProductId();
             endforeach;
+            $this->addLog('Getting product ids');
 
             $data = array(
-                "order_id" => $order->getId(),
-                "value" => (float)$order->getGrandTotal(),
-                "content_ids" => $products,
-                "currency" => $order->getOrderCurrencyCode()
+                "order_id"  => $order->getIncrementId(),
+                "value"   => $total,
+                "content_ids"  => $products,
+                "status" => $order->getStatus(),
+                "email" => $contactData['email'],
+                "currency"  => $order->getOrderCurrencyCode()
             );
+            $this->addLog('Data=' . print_r($data, true));
         } catch (\Flashy_Error $e) {
         }
         return $data;
+    }
+
+    /**
+     * Place order.
+     *
+     * @param $order
+     * @throws \Flashy_Error
+     * @throws \Magento\Framework\Exception\NoSuchEntityException
+     */
+    public function orderPlace($order)
+    {
+        $this->addLog('salesOrderPlaceAfter');
+        $flashy_key = $this->getFlashyKey(\Magento\Store\Model\ScopeInterface::SCOPE_STORE, $this->_storeManager->getStore()->getId());
+        if($this->getFlashyActive() && !empty($flashy_key) && $this->getFlashyPurchase()) {
+
+            $this->flashy = new Flashy($flashy_key);
+
+            $account_id = $this->getFlashyId();
+
+            $this->addLog('account_id='.$account_id);
+
+            $contactData = [
+                'email' => $order->getCustomerEmail(),
+                'first_name' => $order->getShippingAddress()->getFirstname(),
+                'last_name' => $order->getShippingAddress()->getLastname(),
+                'gender' => $order->getCustomerGender()
+            ];
+
+            $this->addLog('Contact Data ' . print_r($contactData, true));
+
+            $this->flashy->contacts->create($contactData);
+            $this->addLog('Flashy contact created');
+
+            $total = (float) $order->getSubtotal();
+            $this->addLog('Order total=' . $total);
+
+            $items = $order->getAllItems();
+            $this->addLog('Getting order items');
+
+            $products = [];
+
+            foreach($items as $i):
+                $products[] = $i->getProductId();
+            endforeach;
+            $this->addLog('Getting product ids');
+
+            $currency = $order->getOrderCurrencyCode();
+            $this->addLog('Currency='.$currency);
+
+            $data = array(
+                "account_id" => $account_id,
+                "email" => $contactData['email'],
+                "order_id"  => $order->getIncrementId(),
+                "value"   => $total,
+                "content_ids"  => $products,
+                "status" => $order->getStatus(),
+                "currency"  => $currency
+            );
+
+            $this->addLog('Data=' . print_r($data, true));
+
+            $track = $this->flashy->thunder->track($account_id, $contactData['email'], "Purchase", $data);
+
+            $this->addLog('Purchase sent.');
+            $this->addLog(json_encode($track));
+        }
     }
 
     /**
@@ -535,12 +659,16 @@ class Data extends \Magento\Framework\App\Helper\AbstractHelper
     {
         try {
             $list_id = $this->getFlashyList($storeId);
+            $flashy_key = $this->getFlashyKey(\Magento\Store\Model\ScopeInterface::SCOPE_STORE, $storeId);
+            if (!empty($list_id) && !empty($flashy_key)) {
+                $this->flashy = new Flashy($flashy_key);
 
-            $this->flashy = new Flashy($this->getFlashyKey(\Magento\Store\Model\ScopeInterface::SCOPE_STORE, $storeId));
-
-            $this->flashy->lists->subscribe($list_id, array(
-                "email" => $subscriberEmail,
-            ));
+                $this->flashy->lists->subscribe($list_id, array(
+                    "email" => $subscriberEmail,
+                    ));
+            } else {
+                $this->addLog('newsletterSubscriberChange: Flashy API Key="' . $flashy_key . '" list id="' . $list_id.'"');
+            }
         } catch (\Flashy_Error $e) {
         }
     }
@@ -554,25 +682,30 @@ class Data extends \Magento\Framework\App\Helper\AbstractHelper
     public function orderSend($order)
     {
         try {
-            $this->flashy = new Flashy($this->getFlashyKey(\Magento\Store\Model\ScopeInterface::SCOPE_STORE, $this->_storeManager->getStore()->getId()));
-            $account_id = $this->getFlashyId();
+            $this->addLog('salesOrderChange');
+            $flashy_key = $this->getFlashyKey(\Magento\Store\Model\ScopeInterface::SCOPE_STORE, $this->_storeManager->getStore()->getId());
+            if($this->getFlashyActive() && !empty($flashy_key)) {
 
-            if ($order->getStatus() != $order->getOrigData('status')) {
+                $this->flashy = new Flashy($flashy_key);
+                $account_id = $this->getFlashyId();
 
-                $email = $order->getCustomerEmail();
+                if ($order->getStatus() != $order->getOrigData('status')) {
 
-                $data = array(
-                    "order_id" => $order->getId(),
-                    "status" => $order->getStatus()
-                );
+                    $email = $order->getCustomerEmail();
 
-                foreach ($order->getTracksCollection() as $_track) {
-                    $data['tracking_id'] = $_track->getNumber();
+                    $data = array(
+                        "order_id" => $order->getIncrementId(),
+                        "status" => $order->getStatus()
+                    );
+
+                    foreach ($order->getTracksCollection() as $_track) {
+                        $data['tracking_id'] = $_track->getNumber();
+                    }
+
+                    $track = $this->flashy->thunder->track($account_id, $email, "PurchaseUpdated", $data);
+
+                    $this->addLog("PurchaseUpdated with data for $account_id and $email:" . json_encode($track));
                 }
-
-                $track = $this->flashy->thunder->track($account_id, $email, "PurchaseUpdated", $data);
-
-                $this->_logger->info("PurchaseUpdated with data for $account_id and $email:" . json_encode($track));
             }
         } catch (\Flashy_Error $e) {
         }
@@ -622,6 +755,9 @@ class Data extends \Magento\Framework\App\Helper\AbstractHelper
                     'title' => $_product->getName(),
                     'description' => $_product->getShortDescription(),
                     'price' => $_product->getPrice(),
+                    'final_price'	=> $_product->getFinalPrice(),
+                    'sale_price'	=> $_product->getSpecialPrice(),
+                    'sale_price_effective_date'	=> date('Y-m-d\TH:i:sO', strtotime($_product->getSpecialFromDate())).'/'.date('Y-m-d\TH:i:sO', strtotime($_product->getSpecialToDate())),
                     'currency' => $currency,
                     'tags' => $_product->getMetaKeyword()
                 );
@@ -645,7 +781,37 @@ class Data extends \Magento\Framework\App\Helper\AbstractHelper
                 continue;
             }
         }
-        return $export_products;
+        $page_size = $products->getPageSize();
+        $current_page = $products->getCurPage();
+        $total = $this->getProductsTotalCount($store_id);
+        $size = $products->getSize();
+
+        $flashy_pagination = false;
+        $next_url = null;
+        if($limit){
+            if(ceil($size/$page_size) > $current_page){
+                $flashy_key = $this->getFlashyKey(\Magento\Store\Model\ScopeInterface::SCOPE_STORE, $store_id);
+                $base_url = $this->getBaseUrlByScopeId($store_id);
+                $nextpage = $current_page + 1;
+                $next_url = $base_url . "flashy?export=products&store_id=$store_id&limit=$limit&page=$nextpage&flashy_key=$flashy_key";
+            }
+            if($size > $limit){
+                $flashy_pagination = true;
+            }
+        }
+
+        return array(
+            "data" => $export_products,
+            "store_id" => $store_id,
+            "size" => $size,
+            "page_size" => $page_size,
+            "current_page" => $current_page,
+            "count"=> count($export_products),
+            "total"=> $total,
+            "flashy_pagination"=> $flashy_pagination,
+            "next_page"=> $next_url,
+            "success" => true
+        );
     }
 
     /**
@@ -666,19 +832,17 @@ class Data extends \Magento\Framework\App\Helper\AbstractHelper
     }
 
     /**
-     * Get exported customers and subscribers
+     * get Customers Total Count
      *
      * @param $store_id
-     * @return array
+     * @return int
      * @throws \Magento\Framework\Exception\LocalizedException
      * @throws \Magento\Framework\Exception\NoSuchEntityException
      */
-    public function exportContacts($store_id)
-    {
+    public function getCustomersTotalCount($store_id) {
         //get website id from  store id
         $websiteId = $this->_storeManager->getStore($store_id)->getWebsiteId();
 
-        //get customer collection
         $customers = $this->_customerCollectionFactory->create();
 
         //get all attributes
@@ -688,29 +852,16 @@ class Data extends \Magento\Framework\App\Helper\AbstractHelper
         if($websiteId > 0) {
             $customers->addAttributeToFilter("website_id", array("eq" => $websiteId));
         }
+        return $customers->getSize();
+    }
 
-        $i = 0;
-        $export_customers = array();
-        foreach ($customers as $_customer) {
-            //add customer fields
-            $export_customers[$i] = array(
-                'email' => $_customer->getEmail(),
-                'first_name' => $_customer->getFirstname(),
-                'last_name' => $_customer->getLastname()
-            );
-
-            //get default shipping address of customer
-            $address = $_customer->getDefaultShippingAddress();
-
-            //add address fields
-            if($address) {
-                $export_customers[$i]['phone'] = $address->getTelephone();
-                $export_customers[$i]['city'] = $address->getCity();
-                $export_customers[$i]['country'] = $address->getCountry();
-            }
-            $i++;
-        }
-
+    /**
+     * get Subscibers Total Count
+     *
+     * @param $store_id
+     * @return int
+     */
+    public function getSubscibersTotalCount($store_id) {
         //get subscriber collection
         $subscribers = $this->_subscriberCollectionFactory->create();
 
@@ -721,23 +872,177 @@ class Data extends \Magento\Framework\App\Helper\AbstractHelper
 
         //get only guest subscribers as customers are included already
         $subscribers->addFieldToFilter('main_table.customer_id', ['eq' => 0]);
+        return $subscribers->getSize();
+    }
 
-        foreach ($subscribers as $subscriber) {
-            //add subscriber email, no other fields are available by default
-            $export_customers[$i]['email'] = $subscriber->getEmail();
-            $i++;
+    /**
+     * Get exported customers and subscribers
+     *
+     * @param $store_id
+     * @param $limit
+     * @param $page
+     * @return array
+     * @throws \Magento\Framework\Exception\LocalizedException
+     * @throws \Magento\Framework\Exception\NoSuchEntityException
+     */
+    public function exportContacts($store_id, $limit, $page)
+    {
+        $total1 = $this->getCustomersTotalCount($store_id);
+        $total2 = $this->getSubscibersTotalCount($store_id);
+
+        $c = true;
+        $s = true;
+        $offset = 0;
+        $limit1 = $limit;
+        if($limit) {
+            if (($page * $limit) <= $total1) {
+                //we'll show only customers
+                $s = false;
+            } else {
+                $offset = $page * $limit - $total1;
+                if ($offset < $limit) {
+                    //we'll show both customers and subscribers
+                    $limit1 = $offset;
+                    $offset = 0;
+                } else {
+                    //we'll show only subscribers
+                    $c = false;
+                    $offset -= $limit;
+                }
+
+            }
         }
 
-        return $export_customers;
+        $i = 0;
+        $export_customers = array();
+        if($c) {
+            //get website id from  store id
+            $websiteId = $this->_storeManager->getStore($store_id)->getWebsiteId();
+
+            $customers = $this->_customerCollectionFactory->create();
+
+            //get all attributes
+            $customers->addAttributeToSelect('*');
+
+            //filter by website
+            if($websiteId > 0) {
+                $customers->addAttributeToFilter("website_id", array("eq" => $websiteId));
+            }
+
+            if ($limit) {
+                $customers->setPageSize($limit);
+                if ($page) {
+                    $customers->setCurPage($page);
+                }
+            }
+
+            foreach ($customers as $_customer) {
+                //add customer fields
+                $export_customers[$i] = array(
+                    'email' => $_customer->getEmail(),
+                    'first_name' => $_customer->getFirstname(),
+                    'last_name' => $_customer->getLastname()
+                );
+
+                //get default shipping address of customer
+                $address = $_customer->getDefaultShippingAddress();
+
+                //add address fields
+                if ($address) {
+                    $export_customers[$i]['phone'] = $address->getTelephone();
+                    $export_customers[$i]['city'] = $address->getCity();
+                    $export_customers[$i]['country'] = $address->getCountry();
+                }
+                $i++;
+            }
+        }
+
+        if($s) {
+            //get subscriber collection
+            $subscribers = $this->_subscriberCollectionFactory->create();
+
+            //filter by store id
+            if($store_id > 0) {
+                $subscribers->addStoreFilter($store_id);
+            }
+
+            //get only guest subscribers as customers are included already
+            $subscribers->addFieldToFilter('main_table.customer_id', ['eq' => 0]);
+
+            if($limit1) {
+                $select = $subscribers->getSelect();
+
+                $select->limit($limit1, $offset);
+            }
+
+            foreach ($subscribers as $subscriber) {
+                //add subscriber email, no other fields are available by default
+                $export_customers[$i]['email'] = $subscriber->getEmail();
+                $i++;
+            }
+        }
+
+        $page_size = $limit;
+        $current_page = $page;
+        $total = $total1 + $total2;
+
+        $flashy_pagination = false;
+        $next_url = null;
+        if($limit){
+            if(ceil($total/$page_size) > $current_page){
+                $flashy_key = $this->getFlashyKey(\Magento\Store\Model\ScopeInterface::SCOPE_STORE, $store_id);
+                $base_url = $this->getBaseUrlByScopeId($store_id);
+                $nextpage = $current_page + 1;
+                $next_url = $base_url . "flashy?export=contacts&store_id=$store_id&limit=$limit&page=$nextpage&flashy_key=$flashy_key";
+            }
+            if($total > $limit){
+                $flashy_pagination = true;
+            }
+        }
+
+        return array(
+            "data" => $export_customers,
+            "store_id" => $store_id,
+            "size" => $total,
+            "page_size" => $page_size,
+            "current_page" => $current_page,
+            "count"=> count($export_customers),
+            "total"=> $total,
+            "flashy_pagination"=> $flashy_pagination,
+            "next_page"=> $next_url,
+            "success" => true
+        );
+    }
+
+    /**
+     * get Orders Total Count
+     *
+     * @param $store_id
+     * @return int
+     */
+    public function getOrdersTotalCount($store_id) {
+        //get order collection
+        $orders = $this->_orderCollectionFactory->create();
+
+        //get all attributes
+        $orders->addAttributeToSelect('*');
+
+        //filter by store id
+        if($store_id > 0) {
+            $orders->addFieldToFilter('main_table.store_id', ['eq' => $store_id]);
+        }
+        return $orders->getSize();
     }
 
     /**
      * Get exported orders
      *
      * @param $store_id
+     * @param $limit
+     * @param $page
      * @return array
      */
-    public function exportOrders($store_id)
+    public function exportOrders($store_id, $limit, $page)
     {
         //get order collection
         $orders = $this->_orderCollectionFactory->create();
@@ -748,6 +1053,13 @@ class Data extends \Magento\Framework\App\Helper\AbstractHelper
         //filter by store id
         if($store_id > 0) {
             $orders->addFieldToFilter('main_table.store_id', ['eq' => $store_id]);
+        }
+
+        if($limit){
+            $orders->setPageSize($limit);
+            if($page){
+                $orders->setCurPage($page);
+            }
         }
 
         $i = 0;
@@ -773,7 +1085,36 @@ class Data extends \Magento\Framework\App\Helper\AbstractHelper
             $i++;
         }
 
-        return $export_orders;
+        $page_size = $orders->getPageSize();
+        $current_page = $orders->getCurPage();
+        $total = $this->getOrdersTotalCount($store_id);
+
+        $flashy_pagination = false;
+        $next_url = null;
+        if($limit){
+            if(ceil($total/$page_size) > $current_page){
+                $flashy_key = $this->getFlashyKey(\Magento\Store\Model\ScopeInterface::SCOPE_STORE, $store_id);
+                $base_url = $this->getBaseUrlByScopeId($store_id);
+                $nextpage = $current_page + 1;
+                $next_url = $base_url . "flashy?export=orders&store_id=$store_id&limit=$limit&page=$nextpage&flashy_key=$flashy_key";
+            }
+            if($total > $limit){
+                $flashy_pagination = true;
+            }
+        }
+
+        return array(
+            "data" => $export_orders,
+            "store_id" => $store_id,
+            "size" => $orders->getSize(),
+            "page_size" => $page_size,
+            "current_page" => $current_page,
+            "count"=> count($export_orders),
+            "total"=> $total,
+            "flashy_pagination"=> $flashy_pagination,
+            "next_page"=> $next_url,
+            "success" => true
+        );
     }
 
     /**
@@ -838,6 +1179,7 @@ class Data extends \Magento\Framework\App\Helper\AbstractHelper
         $store_email = $this->getStoreEmail($scope, $scope_id);
         $store_name = $this->getStoreName($scope_id);
         $base_url = $this->getBaseUrlByScopeId($scope_id);
+
         $data = array(
             "profile" => array(
                 "from_name" => $store_name,
@@ -859,13 +1201,14 @@ class Data extends \Magento\Framework\App\Helper\AbstractHelper
         $urls = array("contacts", "products", "orders");
         foreach ($urls as $url) {
             $data[$url] = array(
-                "url" => $base_url . "flashy?export=$url&store_id=$scope_id&key=" . $api_key,
+                "url" => $base_url . "flashy?export=$url&store_id=$scope_id&limit=100&page=1&flashy_pagination=true&flashy_key=" . $api_key,
                 "format" => "json_url",
             );
         }
 
         try {
             $this->flashy = new Flashy($api_key);
+            $this->addLog("Connection Request Data => " . print_r($data, true));
             $this->flashy->account->connect($data);
 
             $info = $this->flashy->account->info();
@@ -932,7 +1275,7 @@ class Data extends \Magento\Framework\App\Helper\AbstractHelper
                     $cartHash->setCart(json_encode($cartItems));
                     $cartHash->save();
                 } catch (\Exception $e) {
-                    $this->_logger->info("Could not save flashy cart hash key=" . $cartHash->getKey() . " cart=" . $cartHash->getCart());
+                    $this->addLog("Could not save flashy cart hash key=" . $cartHash->getKey() . " cart=" . $cartHash->getCart());
                 }
             }
         }
@@ -978,7 +1321,7 @@ class Data extends \Magento\Framework\App\Helper\AbstractHelper
                             'message' => __('Error! %1 is not restored. %2', $product->getName(), $e->getMessage()),
                             'success' => false
                         );
-                        $this->_logger->info($e->getMessage());
+                        $this->addLog($e->getMessage());
                     }
                 }
 
@@ -989,9 +1332,16 @@ class Data extends \Magento\Framework\App\Helper\AbstractHelper
                     'message' => __('Error! Cart is not restored.'),
                     'success' => false
                 );
-                $this->_logger->info("Could not restore flashy cart hash for id=$id cart=" . $cartHash->getCart());
+                $this->addLog("Could not restore flashy cart hash for id=$id cart=" . $cartHash->getCart());
             }
         }
         return $messages;
+    }
+
+    public function addLog($m, $l=200)
+    {
+        if ($this->getFlashyLog()) {
+            $this->_flashyLogger->log($l,$m);
+        }
     }
 }

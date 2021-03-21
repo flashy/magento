@@ -1,7 +1,7 @@
 <?php
-namespace Flashy\Integration\Observer\Checkout;
+namespace Flashy\Integration\Observer\Sales;
 
-class CartSaveAfter implements \Magento\Framework\Event\ObserverInterface
+class OrderPlaceAfter implements \Magento\Framework\Event\ObserverInterface
 {
     /**
      * @var \Flashy\Integration\Helper\Data
@@ -23,14 +23,13 @@ class CartSaveAfter implements \Magento\Framework\Event\ObserverInterface
      * Execute observer
      *
      * @param \Magento\Framework\Event\Observer $observer
+     * @throws \Flashy_Error
      * @throws \Magento\Framework\Exception\NoSuchEntityException
      */
     public function execute(
         \Magento\Framework\Event\Observer $observer
     ) {
-        if($this->helper->getFlashyActive()) {
-            $cart = $observer->getEvent()->getCart();
-            $this->helper->updateFlashyCartHash($cart);
-        }
+        $order = $observer->getEvent()->getOrder();
+        $this->helper->orderPlace($order);
     }
 }

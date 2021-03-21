@@ -3,7 +3,7 @@
  * @var $block \Flashy\Integration\Block\Index
  */
 ?>
-<?php if( $block->getFlashyId() ) : ?>
+<?php if( $block->getFlashyId() && !($block->getFlashyPurchase())) : ?>
     <script type="text/javascript">
         //<![CDATA[
         flashy('Purchase', <?php echo json_encode($block->getOrderDetails()); ?>);
