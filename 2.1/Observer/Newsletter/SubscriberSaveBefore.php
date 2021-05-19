@@ -23,14 +23,17 @@ class SubscriberSaveBefore implements \Magento\Framework\Event\ObserverInterface
      * Execute observer.
      *
      * @param \Magento\Framework\Event\Observer $observer
+     * @throws \Magento\Framework\Exception\NoSuchEntityException
      */
     public function execute(
         \Magento\Framework\Event\Observer $observer
     ) {
-        $subscriber = $observer->getEvent()->getSubscriber();
+        if($this->helper->getFlashyActive()) {
+            $subscriber = $observer->getEvent()->getSubscriber();
 
-        if( $subscriber->getStatus() == \Magento\Newsletter\Model\Subscriber::STATUS_SUBSCRIBED ) {
-            $this->helper->subscriberSend($subscriber->getSubscriberEmail(), $subscriber->getStoreId());
+            if ($subscriber->getStatus() == \Magento\Newsletter\Model\Subscriber::STATUS_SUBSCRIBED) {
+                $this->helper->subscriberSend($subscriber->getSubscriberEmail(), $subscriber->getStoreId());
+            }
         }
     }
 }

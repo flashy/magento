@@ -44,28 +44,25 @@ class Index extends \Magento\Framework\App\Action\Action
         $export_type = $this->getRequest()->getParam('export', 'products');
 
         if ( $this->helper->getFlashyKey(\Magento\Store\Model\ScopeInterface::SCOPE_STORE, $store_id) === $flashy_key ) {
+            $limit = $this->getRequest()->getParam('limit');
+            $page = $this->getRequest()->getParam('page');
             $total = 0;
             switch ($export_type){
                 case 'products':
-                    $limit = $this->getRequest()->getParam('limit');
-                    $page = $this->getRequest()->getParam('page');
-                    $export_data = $this->helper->exportProducts($store_id, $limit, $page);
-                    $total = $this->helper->getProductsTotalCount($store_id);
+                    $resultArray = $this->helper->exportProducts($store_id, $limit, $page);
                     break;
                 case 'contacts':
-                    $export_data = $this->helper->exportContacts($store_id);
-                    $total = count($export_data);
+                    $resultArray = $this->helper->exportContacts($store_id, $limit, $page);
                     break;
                 case 'orders':
-                    $export_data = $this->helper->exportOrders($store_id);
-                    $total = count($export_data);
+                    $resultArray = $this->helper->exportOrders($store_id, $limit, $page);
                     break;
                 default:
                     $result->setStatusHeader(401);
                     $resultArray = array("success" => false, "error" => true, "message" => "Export type is not supported.");
                     return  $result->setData($resultArray);
             }
-            $resultArray = array("data" => $export_data, "store_id" => $store_id, "total"=> $total, "success" => true);
+            //$resultArray = array("data" => $export_data, "store_id" => $store_id, "total"=> $total, "success" => true);
         } else {
             $result->setStatusHeader(401);
             $resultArray = array("success" => false, "error" => true, "message" => "You are not authorized to view the content.");

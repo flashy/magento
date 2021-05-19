@@ -7,6 +7,18 @@
 			<resource>Flashy_Integration::config_flashy_integration</resource>
 			<group id="flashy" showInDefault="1" showInStore="1" showInWebsite="1" sortOrder="10" translate="label">
 				<label>Flashy Integration</label>
+				<field id="active" translate="label" type="select" sortOrder="1" showInDefault="1" showInWebsite="1" showInStore="1">
+					<label>Enabled</label>
+					<source_model>Magento\Config\Model\Config\Source\Yesno</source_model>
+				</field>
+				<field id="purchase" translate="label" type="select" sortOrder="3" showInDefault="1" showInWebsite="1" showInStore="1">
+					<label>Send purchase before payment</label>
+					<source_model>Magento\Config\Model\Config\Source\Yesno</source_model>
+				</field>
+				<field id="log" translate="label" type="select" sortOrder="5" showInDefault="1" showInWebsite="1" showInStore="1">
+					<label>Enabled logging</label>
+					<source_model>Magento\Config\Model\Config\Source\Yesno</source_model>
+				</field>
 				<field id="flashy_key" showInDefault="1" showInStore="1" showInWebsite="1" sortOrder="10" translate="label" type="text">
 					<label>API Key</label>
 					<comment>Enter the API Key provided by Flashy.</comment>

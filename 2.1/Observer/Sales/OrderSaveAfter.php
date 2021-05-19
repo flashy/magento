@@ -23,11 +23,12 @@ class OrderSaveAfter implements \Magento\Framework\Event\ObserverInterface
      * Execute observer
      *
      * @param \Magento\Framework\Event\Observer $observer
+     * @throws \Magento\Framework\Exception\NoSuchEntityException
      */
     public function execute(
         \Magento\Framework\Event\Observer $observer
     ) {
         $order = $observer->getEvent()->getOrder();
-        //$this->helper->orderSend($order);
+        $this->helper->orderSend($order);
     }
 }
