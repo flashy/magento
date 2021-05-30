@@ -321,6 +321,8 @@ class Data extends \Magento\Framework\App\Helper\AbstractHelper
                 'email' => $order->getCustomerEmail(),
                 'first_name' => $order->getShippingAddress()->getFirstname(),
                 'last_name' => $order->getShippingAddress()->getLastname(),
+                'phone' => $order->getShippingAddress()->getTelephone(),
+                'city' => $order->getShippingAddress()->getCity(),
                 'gender' => $order->getCustomerGender()
             ]);
 
