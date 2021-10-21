@@ -10,8 +10,14 @@ class Flashy_Integration_Model_System_Config_Backend_Key extends Mage_Core_Model
     protected function _beforeSave()
     {
         if($this->getValue() != '') {
+
+            $flashy_helper = Mage::helper('flashy');
             $flashy = new Flashy_Flashy($this->getValue());
-            $info = $flashy->account->info();
+
+            $info = $flashy_helper->tryOrLog( function () use($flashy) {
+                return $flashy->account->info();
+            });
+
             if(!$info['success']) {
                 throw Mage::exception(
                     'Mage_Core', Mage::helper('flashy')->__('Flashy API Key is not valid.')
@@ -74,9 +80,18 @@ class Flashy_Integration_Model_System_Config_Backend_Key extends Mage_Core_Model
             }
 
             $flashy = new Flashy_Flashy($api_key);
-            $connect = $flashy->account->connect($data);
+            $flashy_helper = Mage::helper('flashy');
+
+            $connect = $flashy_helper->tryOrLog( function () use($flashy, $data) {
+                return $flashy->account->connect($data);
+            });
+
             $value = intval($connect['success']);
-            $info = $flashy->account->info();
+
+            $info = $flashy_helper->tryOrLog( function () use($flashy) {
+                return $flashy->account->info();
+            });
+
             if( $info['success'] == true ) {
                 $flashy_id = $info['account']['id'];
             }

@@ -47,6 +47,7 @@ class Flashy_Integration_IndexController extends Mage_Core_Controller_Front_Acti
         return $products->getSize();
 
     }
+
 	public function exportProducts($store_id, $limit, $page) {
         if( $store_id == 0 ) {
             $products = Mage::getModel('catalog/product')->getCollection();

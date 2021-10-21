@@ -37,10 +37,43 @@ class Flashy_Integration_Helper_Data extends Mage_Core_Helper_Abstract {
 
         return $tracking;
     }
+
     public function addLog($m)
     {
         if (Mage::getStoreConfig('flashy/flashy/log')) {
             Mage::log($m, null, 'flashy.log', true);
         }
+    }
+
+    /**
+     * @param Closure $func
+     * @return mixed
+     */
+    public static function tryOrLog(Closure $func)
+    {
+        $flashy_log = Mage::helper("flashy");
+
+        if( phpversion() > 7 )
+        {
+            try {
+                return $func();
+            }
+            catch ( \Throwable $e )
+            {
+                $flashy_log->addLog("Was not able to do something safely: {$e->getMessage()} \n " . $e->getTraceAsString());
+            }
+        }
+        else
+        {
+            try {
+                return $func();
+            }
+            catch ( Exception $e )
+            {
+                $flashy_log->addLog("Was not able to do something safely: {$e->getMessage()} \n " . $e->getTraceAsString());
+            }
+        }
+
+        return null;
     }
 }

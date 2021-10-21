@@ -16,21 +16,21 @@ class Flashy_Integration_Block_Index extends Mage_Core_Block_Template {
 
     public function getOrderDetails()
     {
-        $h = Mage::helper("flashy");
-        $h->addLog('getOrderDetails');
+        $flashy_helper = Mage::helper("flashy");
+        $flashy_helper->addLog('getOrderDetails');
 
         $this->flashy = new Flashy_Flashy( Mage::getStoreConfig('flashy/flashy/flashy_key') );
-        $h->addLog('step1:flashy_key');
+        $flashy_helper->addLog('step1:flashy_key');
 
         $orderId = Mage::getSingleton('checkout/session')->getLastOrderId();
-        $h->addLog('step2: orderId='.$orderId);
+        $flashy_helper->addLog('step2: orderId='.$orderId);
 
         $order = Mage::getModel('sales/order')->load($orderId);
-        $h->addLog('step3: order loaded');
+        $flashy_helper->addLog('step3: order loaded');
 
         if($order->getCustomerId()) {
             $customer = Mage::getModel('customer/customer')->load($order->getCustomerId());
-            $h->addLog('step4: customer loaded');
+            $flashy_helper->addLog('step4: customer loaded');
 
             $contactData = [
                 'email' => $customer->getEmail(),
@@ -40,7 +40,7 @@ class Flashy_Integration_Block_Index extends Mage_Core_Block_Template {
             ];
         } else {
             $billingAddress = $order->getBillingAddress();
-            $h->addLog('step4: billingAddress loaded');
+            $flashy_helper->addLog('step4: billingAddress loaded');
             $contactData = [
                 'email' => $billingAddress->getEmail(),
                 'first_name' => $billingAddress->getFirstname(),
@@ -48,26 +48,29 @@ class Flashy_Integration_Block_Index extends Mage_Core_Block_Template {
                 'gender' => $billingAddress->getGender()
             ];
         }
-        $h->addLog('step5: Contact data ' . print_r($contactData, true));
+        $flashy_helper->addLog('step5: Contact data ' . print_r($contactData, true));
 
-        $this->flashy->contacts->create($contactData);
-        $h->addLog('step6: flashy contact created');
+        $create = $flashy_helper->tryOrLog( function () use($contactData) {
+            return $this->flashy->contacts->create($contactData);
+        });
+
+        $flashy_helper->addLog('step6: flashy contact created');
 
         $total = (float) $order->getSubtotal();
-        $h->addLog('step7: order total=' . $total);
+        $flashy_helper->addLog('step7: order total=' . $total);
 
         $items = $order->getAllItems();
-        $h->addLog('step8: getting order items');
+        $flashy_helper->addLog('step8: getting order items');
 
         $products = [];
 
         foreach($items as $i):
             $products[] = $i->getProductId();
         endforeach;
-        $h->addLog('step9: getting product ids');
+        $flashy_helper->addLog('step9: getting product ids');
 
         $currency = Mage::app()->getStore($this->_getStore())->getCurrentCurrencyCode();
-        $h->addLog('step10: currency='.$currency);
+        $flashy_helper->addLog('step10: currency='.$currency);
 
         $data = array(
             "order_id"  => $orderId,
@@ -78,7 +81,7 @@ class Flashy_Integration_Block_Index extends Mage_Core_Block_Template {
             "currency"  => $currency
         );
 
-        $h->addLog('step11: data=' . print_r($data, true));
+        $flashy_helper->addLog('step11: data=' . print_r($data, true));
 
         return $data;
     }

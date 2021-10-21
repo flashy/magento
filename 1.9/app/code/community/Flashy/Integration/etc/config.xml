@@ -62,6 +62,14 @@
             </flashy_write>
         </resources>
         <events>
+            <customer_register_success>
+                <observers>
+                    <flashy>
+                        <class>flashy/observer</class>
+                        <method>customerRegistered</method>
+                    </flashy>
+                </observers>
+            </customer_register_success>
             <newsletter_subscriber_save_before>
                 <observers>
                     <flashy>

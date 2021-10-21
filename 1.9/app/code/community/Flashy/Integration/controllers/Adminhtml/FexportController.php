@@ -53,6 +53,8 @@ class Flashy_Integration_Adminhtml_FexportController extends Mage_Adminhtml_Cont
 
     public function exportProducts($store_id, $catalog_id)
     {
+        $flashy_helper = Mage::helper('flashy');
+
     	if( $store_id == 0 )
     		$products = Mage::getModel('catalog/product')->getCollection();
     	else
@@ -114,7 +116,9 @@ class Flashy_Integration_Adminhtml_FexportController extends Mage_Adminhtml_Cont
 			}
 		}
 
-		$export = $this->flashy->import->products($export_products, $catalog_id);
+        $export = $flashy_helper->tryOrLog( function () use($export_products, $catalog_id) {
+            return $this->flashy->import->products($export_products, $catalog_id);
+        });
 
 		if( isset($export['error']) )
 		{

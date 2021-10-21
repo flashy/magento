@@ -8,7 +8,7 @@ class Flashy_Integration_Block_Adminhtml_Form_Edit_Tab_Lists extends Mage_Adminh
      */
     protected function _prepareForm()
     {
-        $helper = Mage::helper('flashy');
+        $flashy_helper = Mage::helper('flashy');
 
         $form = new Varien_Data_Form();
 
@@ -26,15 +26,19 @@ class Flashy_Integration_Block_Adminhtml_Form_Edit_Tab_Lists extends Mage_Adminh
         {
             $this->flashy = new Flashy_Flashy( Mage::getStoreConfig('flashy/flashy/flashy_key') );
 
-            $info = $this->flashy->account->info();
+            $info = $flashy_helper->tryOrLog( function () {
+                return $this->flashy->account->info();
+            });
 
             if( $info['success'] == true )
             {
                 Mage::getConfig()->saveConfig('flashy/flashy/flashy_id', $info['account']['id'], 'default', 0);
 
                 $catalog_id = Mage::getStoreConfig('flashy/flashy/flashy_catalog');
-                
-                $catalogs = $this->flashy->catalogs->get();
+
+                $catalogs = $flashy_helper->tryOrLog( function () {
+                    return $this->flashy->catalogs->get();
+                });
 
                 foreach ($catalogs['catalogs'] as $catalog)
                 {
@@ -54,8 +58,8 @@ class Flashy_Integration_Block_Adminhtml_Form_Edit_Tab_Lists extends Mage_Adminh
 
                     $fieldset->addField('stores', 'select', array(
                         'name'      => 'store',
-                        'label'     => $helper->__('Select Store'),
-                        'title'     => $helper->__('Select Store'),
+                        'label'     => $flashy_helper->__('Select Store'),
+                        'title'     => $flashy_helper->__('Select Store'),
                         'required'  => true,
                         'values'    => $stores
                     ));
@@ -71,7 +75,7 @@ class Flashy_Integration_Block_Adminhtml_Form_Edit_Tab_Lists extends Mage_Adminh
                 }
 
                 $select = array(
-                    'label'     => $helper->__('Catalog'),
+                    'label'     => $flashy_helper->__('Catalog'),
                     'class'     => 'required-entry',
                     'required'  => true,
                     'name'      => 'catalog',
