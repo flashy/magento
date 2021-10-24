@@ -8,14 +8,14 @@
 
 			<?php
 				$flashy_id = Mage::getSingleton('core/cookie')->get('flashy_id');
+                $customer = Mage::getSingleton('customer/session')->getCustomer();
 
-				if( Mage::getSingleton('customer/session')->isLoggedIn() && !$flashy_id ) {
-					$customer = Mage::getSingleton('customer/session')->getCustomer();
-					?>
+				if( Mage::getSingleton('customer/session')->isLoggedIn() && (!$flashy_id || $flashy_id != base64_encode($customer->getEmail()))) { ?>
 
-					flashy('setCustomer', {
+                    flashy('setCustomer', {
 						"email": "<?php echo base64_encode($customer->getEmail()); ?>"
 					});
+
 			<?php } ?>
 		//]]>
 	</script>
