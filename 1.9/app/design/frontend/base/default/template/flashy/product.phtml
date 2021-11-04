@@ -1,4 +1,5 @@
-<?php $helper = Mage::helper("flashy"); ?>
+<?php $flashy_helper = Mage::helper("flashy"); ?>
+
 <?php if( $this->getFlashyId() ) : ?>
     <script type="text/javascript">
         //<![CDATA[
@@ -14,17 +15,21 @@
         <?php } ?>
         //]]>
     </script>
-    <?php if( $helper->getCart() ) : ?>
+
+    <?php
+    $flashy_cart = $flashy_helper->getCart();
+    if( $flashy_cart ) :
+        ?>
         <script type="text/javascript">
-            //<![CDATA[
+			//<![CDATA[
             <?php
             $cart_cache = Mage::getSingleton('core/cookie')->get('flashy_cart_cache');
-            if( base64_encode($helper->getCart()) !== $cart_cache ) : ?>
-            flashy('UpdateCart', <?php echo $helper->getCart(); ?>);
+            if( base64_encode($flashy_cart) != $cart_cache ) : ?>
+			flashy('UpdateCart', <?php echo $flashy_cart; ?>);
             <?php
-            Mage::getSingleton('core/cookie')->set('flashy_cart_cache', base64_encode($helper->getCart()), 86400, '/');
+            Mage::getSingleton('core/cookie')->set('flashy_cart_cache', base64_encode($flashy_cart), 86400, '/');
             endif; ?>
-            //]]>
+			//]]>
         </script>
     <?php endif; ?>
 <?php endif; ?>

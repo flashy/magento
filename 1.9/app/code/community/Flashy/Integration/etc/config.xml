@@ -70,6 +70,14 @@
                     </flashy>
                 </observers>
             </customer_register_success>
+            <adminhtml_customer_save_after>
+                <observers>
+                    <flashy>
+                        <class>flashy/observer</class>
+                        <method>customerRegistered</method>
+                    </flashy>
+                </observers>
+            </adminhtml_customer_save_after>
             <newsletter_subscriber_save_before>
                 <observers>
                     <flashy>

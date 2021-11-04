@@ -71,10 +71,10 @@ class Flashy_Integration_Model_System_Config_Backend_Key extends Mage_Core_Model
                     ),
                 )
             );
-            $urls = array("contacts", "products", "orders");
-            foreach ($urls as $url) {
-                $data[$url] = array(
-                    "url" => $base_url . "flashy?export=$url&store_id=$scope_id&limit=100&page=1&flashy_pagination=true&flashy_key=" . $api_key,
+            $entities = array('products', 'contacts', 'orders');
+            foreach ($entities as $entity) {
+                $data[$entity] = array(
+                    "url" => $base_url . "flashy?export=$entity&store_id=$scope_id&flashy_pagination=true&flashy_key=$api_key&limit=100&page=1",
                     "format" => "json_url",
                 );
             }

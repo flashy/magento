@@ -1,9 +1,9 @@
-<?php $helper = Mage::helper("flashy"); ?>
+<?php $flashy_helper = Mage::helper("flashy"); ?>
 
-<?php if( $helper->getFlashyId() ) : ?>
+<?php if( $flashy_helper->getFlashyId() ) : ?>
 	<script type="text/javascript">
 		//<![CDATA[
-			'use strict'; (function (a, b, c) { if (!a.flashy) { a.flashy = function () { a.flashy.event && a.flashy.event(arguments), a.flashy.queue.push(arguments) }, a.flashy.queue = []; var d = document.getElementsByTagName('script')[0], e = document.createElement(b); e.src = c, e.async = !0, d.parentNode.insertBefore(e, d) } })(window, 'script', 'https://js.flashyapp.com/thunder.js'), flashy('init', <?php echo $helper->getFlashyId(); ?>);
+			'use strict'; (function (a, b, c) { if (!a.flashy) { a.flashy = function () { a.flashy.event && a.flashy.event(arguments), a.flashy.queue.push(arguments) }, a.flashy.queue = []; var d = document.getElementsByTagName('script')[0], e = document.createElement(b); e.src = c, e.async = !0, d.parentNode.insertBefore(e, d) } })(window, 'script', 'https://js.flashyapp.com/thunder.js'), flashy('init', <?php echo $flashy_helper->getFlashyId(); ?>);
 			flashy('PageView');
 
 			<?php
@@ -19,16 +19,18 @@
 			<?php } ?>
 		//]]>
 	</script>
-
-	<?php if( $helper->getCart() ) : ?>
+    <?php
+    $flashy_cart = $flashy_helper->getCart();
+    if( $flashy_cart ) :
+    ?>
 		<script type="text/javascript">
 			//<![CDATA[
 				<?php
 					$cart_cache = Mage::getSingleton('core/cookie')->get('flashy_cart_cache');
-					if( base64_encode($helper->getCart()) !== $cart_cache ) : ?>
-						flashy('UpdateCart', <?php echo $helper->getCart(); ?>);
+					if( base64_encode($flashy_cart) != $cart_cache ) : ?>
+						flashy('UpdateCart', <?php echo $flashy_cart; ?>);
 			    		<?php
-			    		Mage::getSingleton('core/cookie')->set('flashy_cart_cache', base64_encode($helper->getCart()), 86400, '/');
+			    		Mage::getSingleton('core/cookie')->set('flashy_cart_cache', base64_encode($flashy_cart), 86400, '/');
 			    	endif; ?>
 			//]]>
 		</script>

@@ -2,51 +2,29 @@
 
 class Flashy_Integration_Model_Observer
 {
-    private function setFlashyCustomer($customer)
-    {
-        return array(
-            'email' => $customer->getEmail(),
-            'first_name' => $customer->getFirstname(),
-            'last_name' => $customer->getLastname(),
-            'gender' => $customer->getGender(),
-            'phone' => $customer->getPhone(),
-            'birthday' => strtotime($customer->getDob())
-        );
-    }
-
     public function customerRegistered(Varien_Event_Observer $observer)
     {
         $flashy_helper = Mage::helper("flashy");
         $flashy_helper->addLog('Event: customerRegistered');
-//
+
         $event = $observer->getEvent();
         $customer = $event->getCustomer();
 
-        $customerIsSubscribed = [];
+        $flashy_key = Mage::getStoreConfig('flashy/flashy/flashy_key');
 
-        $subscriber = Mage::getModel('newsletter/subscriber')->loadByEmail($customer->getEmail());
-        if ($subscriber) {
-            $customerIsSubscribed = $subscriber->isSubscribed();
-        }
+        $contactData = $flashy_helper->extractDataFromCustomer($customer);
 
-        if(empty($customerIsSubscribed))
-        {
-            $flashy_key = Mage::getStoreConfig('flashy/flashy/flashy_key');
+        $flashy_helper->addLog('Contact info: ');
+        $flashy_helper->addLog($contactData);
 
-            $contactData = $this->setFlashyCustomer($customer);
+        $this->flashy = new Flashy_Flashy($flashy_key);
 
-            $flashy_helper->addLog('Contact info: ');
-            $flashy_helper->addLog($contactData);
+        $create = $flashy_helper->tryOrLog( function () use ($contactData){
+            return $this->flashy->contacts->create($contactData);
+        });
 
-            $this->flashy = new Flashy_Flashy($flashy_key);
-
-            $create = $flashy_helper->tryOrLog( function () use ($contactData){
-                return $this->flashy->contacts->create($contactData);
-            });
-
-            $flashy_helper->addLog('Response: ');
-            $flashy_helper->addLog($create);
-        }
+        $flashy_helper->addLog('Response: ');
+        $flashy_helper->addLog($create);
     }
 
     public function newsletterSubscriberChange(Varien_Event_Observer $observer)
@@ -64,15 +42,7 @@ class Flashy_Integration_Model_Observer
                 {
                     $this->flashy = new Flashy_Flashy($flashy_key);
 
-                    if($subscriber->getCustomerId()) {
-                        $customer = Mage::getModel('customer/customer')->load($subscriber->getCustomerId());
-
-                        $contactData = $this->setFlashyCustomer($customer);
-                    }
-                    else
-                    {
-                        $contactData = ["email" => $subscriber->getSubscriberEmail(),];
-                    }
+                    $contactData = ["email" => $subscriber->getSubscriberEmail(),];
 
                     $flashy_helper->addLog('Subscriber info: ');
                     $flashy_helper->addLog($contactData);
@@ -175,30 +145,48 @@ class Flashy_Integration_Model_Observer
                 }
             }
 
-            if($order->getCustomerId()) {
+            if($order->getCustomerId())
+            {
                 $customer = Mage::getModel('customer/customer')->load($order->getCustomerId());
 
-                $contactData = $this->setFlashyCustomer($customer);
-            } else {
-                $billingAddress = $order->getBillingAddress();
-                $contactData = [
-                    'email' => $billingAddress->getEmail(),
-                    'first_name' => $billingAddress->getFirstname(),
-                    'last_name' => $billingAddress->getLastname(),
-                    'gender' => $billingAddress->getGender(),
-                    'phone' => $billingAddress->getPhone(),
-                ];
+                $loggedInCustomer = $flashy_helper->extractDataFromCustomer($customer);
             }
+            else
+            {
+                $loggedInCustomer = [];
+            }
+
+            $orderCustomerData = $flashy_helper->extractDataFromOrder($order);
+
+            $billingData = $flashy_helper->extractDataFromBilling($order->getBillingAddress());
+
+            $contactData = array_merge($loggedInCustomer, $orderCustomerData, $billingData);
+
 
             $flashy_helper->addLog('Contact info: ');
             $flashy_helper->addLog($contactData);
 
-            $create = $flashy_helper->tryOrLog( function () use($contactData) {
-                return $this->flashy->contacts->create($contactData);
+            $get = $flashy_helper->tryOrLog( function () use($contactData) {
+                return $this->flashy->contacts->get($contactData['email']);
             });
 
+            if($get['success'] == true)
+            {
+                $flashy_helper->addLog('Updating contact.');
+                $createOrUpdate = $flashy_helper->tryOrLog( function () use($contactData) {
+                    return $this->flashy->contacts->update($contactData['email'], $contactData);
+                });
+            }
+            else
+            {
+                $flashy_helper->addLog('Creating contact.');
+                $createOrUpdate = $flashy_helper->tryOrLog( function () use($contactData) {
+                    return $this->flashy->contacts->create($contactData);
+                });
+            }
+
             $flashy_helper->addLog('Response: ');
-            $flashy_helper->addLog($create);
+            $flashy_helper->addLog($createOrUpdate);
 
             $total = (float) $order->getSubtotal();
 

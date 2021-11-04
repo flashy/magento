@@ -14,6 +14,11 @@ class Flashy_Integration_Model_List
             $lists = $flashy_helper->tryOrLog( function () {
                 return $this->flashy->lists->all();
             });
+
+            $options[] = array(
+                'value' => strval(''),
+                'label' => 'Choose a list'
+            );
             
             foreach ($lists['lists'] as $list)
             {
