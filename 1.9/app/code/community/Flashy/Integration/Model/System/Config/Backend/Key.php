@@ -10,8 +10,14 @@ class Flashy_Integration_Model_System_Config_Backend_Key extends Mage_Core_Model
     protected function _beforeSave()
     {
         if($this->getValue() != '') {
+
+            $flashy_helper = Mage::helper('flashy');
             $flashy = new Flashy_Flashy($this->getValue());
-            $info = $flashy->account->info();
+
+            $info = $flashy_helper->tryOrLog( function () use($flashy) {
+                return $flashy->account->info();
+            });
+
             if(!$info['success']) {
                 throw Mage::exception(
                     'Mage_Core', Mage::helper('flashy')->__('Flashy API Key is not valid.')
@@ -65,18 +71,27 @@ class Flashy_Integration_Model_System_Config_Backend_Key extends Mage_Core_Model
                     ),
                 )
             );
-            $urls = array("contacts", "products", "orders");
-            foreach ($urls as $url) {
-                $data[$url] = array(
-                    "url" => $base_url . "flashy?export=$url&store_id=$scope_id&limit=100&page=1&flashy_pagination=true&flashy_key=" . $api_key,
+            $entities = array('products', 'contacts', 'orders');
+            foreach ($entities as $entity) {
+                $data[$entity] = array(
+                    "url" => $base_url . "flashy?export=$entity&store_id=$scope_id&flashy_pagination=true&flashy_key=$api_key&limit=100&page=1",
                     "format" => "json_url",
                 );
             }
 
             $flashy = new Flashy_Flashy($api_key);
-            $connect = $flashy->account->connect($data);
+            $flashy_helper = Mage::helper('flashy');
+
+            $connect = $flashy_helper->tryOrLog( function () use($flashy, $data) {
+                return $flashy->account->connect($data);
+            });
+
             $value = intval($connect['success']);
-            $info = $flashy->account->info();
+
+            $info = $flashy_helper->tryOrLog( function () use($flashy) {
+                return $flashy->account->info();
+            });
+
             if( $info['success'] == true ) {
                 $flashy_id = $info['account']['id'];
             }

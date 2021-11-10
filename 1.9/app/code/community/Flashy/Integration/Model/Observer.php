@@ -2,22 +2,61 @@
 
 class Flashy_Integration_Model_Observer
 {
+    public function customerRegistered(Varien_Event_Observer $observer)
+    {
+        $flashy_helper = Mage::helper("flashy");
+        $flashy_helper->addLog('Event: customerRegistered');
+
+        $event = $observer->getEvent();
+        $customer = $event->getCustomer();
+
+        $flashy_key = Mage::getStoreConfig('flashy/flashy/flashy_key');
+
+        $contactData = $flashy_helper->extractDataFromCustomer($customer);
+
+        $flashy_helper->addLog('Contact info: ');
+        $flashy_helper->addLog($contactData);
+
+        $this->flashy = new Flashy_Flashy($flashy_key);
+
+        $create = $flashy_helper->tryOrLog( function () use ($contactData){
+            return $this->flashy->contacts->create($contactData);
+        });
+
+        $flashy_helper->addLog('Response: ');
+        $flashy_helper->addLog($create);
+    }
+
     public function newsletterSubscriberChange(Varien_Event_Observer $observer)
     {
+        $flashy_helper = Mage::helper("flashy");
+        $flashy_helper->addLog('Event: newsletterSubscriberChange');
+
         if(Mage::getStoreConfig('flashy/flashy/active')) {
             $subscriber = $observer->getEvent()->getSubscriber();
 
             if ($subscriber->getStatus() == Mage_Newsletter_Model_Subscriber::STATUS_SUBSCRIBED) {
                 $list_id = Mage::getStoreConfig('flashy/flashy_lists/flashy_list', $subscriber->getStoreId());
                 $flashy_key = Mage::getStoreConfig('flashy/flashy/flashy_key');
-                if (!empty($list_id) && !empty($flashy_key)) {
+                if (!empty($list_id) && !empty($flashy_key))
+                {
                     $this->flashy = new Flashy_Flashy($flashy_key);
 
-                    $subscribe = $this->flashy->lists->subscribe($list_id, array(
-                        "email" => $subscriber->getSubscriberEmail(),
-                    ));
-                } else {
-                    Mage::helper("flashy")->addLog('newsletterSubscriberChange: Flashy API Key="' . $flashy_key . '" list id="' . $list_id.'"');
+                    $contactData = ["email" => $subscriber->getSubscriberEmail(),];
+
+                    $flashy_helper->addLog('Subscriber info: ');
+                    $flashy_helper->addLog($contactData);
+
+                    $subscribe = $flashy_helper->tryOrLog( function () use ($list_id, $contactData){
+                        return $this->flashy->lists->subscribe($list_id, $contactData);
+                    });
+
+                    $flashy_helper->addLog('Contact info: ');
+                    $flashy_helper->addLog($subscribe);
+                }
+                else
+                {
+                    $flashy_helper->addLog('Failed: Flashy API Key="' . $flashy_key . '" list id="' . $list_id.'"');
                 }
             }
         }
@@ -25,7 +64,9 @@ class Flashy_Integration_Model_Observer
 
     public function salesOrderChange(Varien_Event_Observer $observer)
     {
-        Mage::helper("flashy")->addLog("salesOrderChange");
+        $flashy_helper = Mage::helper("flashy");
+        $flashy_helper->addLog('Event: salesOrderChange');
+
         $flashy_key = Mage::getStoreConfig('flashy/flashy/flashy_key');
         if(Mage::getStoreConfig('flashy/flashy/active') && !empty($flashy_key)) {
 
@@ -36,9 +77,12 @@ class Flashy_Integration_Model_Observer
             $account_id = Mage::getStoreConfig('flashy/flashy/flashy_id');
 
             if ($account_id == null) {
-                if ($info['success'] == true) {
-                    $info = $this->flashy->account->info();
 
+                $info = $flashy_helper->tryOrLog( function () {
+                    return $this->flashy->account->info();
+                });
+
+                if ($info['success'] == true) {
                     Mage::getConfig()->saveConfig('flashy/flashy/flashy_id', $info['account']['id'], 'default', 0);
 
                     $account_id = $info['account']['id'];
@@ -61,16 +105,24 @@ class Flashy_Integration_Model_Observer
                     $data['tracking_id'] = $_track->getNumber();
                 }
 
-                $track = $this->flashy->thunder->track($account_id, $email, "PurchaseUpdated", $data);
+                $flashy_helper->addLog('Order info: ');
+                $flashy_helper->addLog($data);
 
-                Mage::helper("flashy")->addLog(json_encode($track));
+                $track = $flashy_helper->tryOrLog( function () use ($account_id, $email, $data){
+                    return $this->flashy->thunder->track($account_id, $email, "PurchaseUpdated", $data);
+                });
+
+
+                $flashy_helper->addLog('Response: ');
+                $flashy_helper->addLog($track);
             }
         }
     }
+
     public function salesOrderPlaceAfter(Varien_Event_Observer $observer)
     {
-        $h = Mage::helper("flashy");
-        $h->addLog('salesOrderPlaceAfter');
+        $flashy_helper = Mage::helper("flashy");
+        $flashy_helper->addLog('Event: salesOrderPlaceAfter');
         $flashy_key = Mage::getStoreConfig('flashy/flashy/flashy_key');
         if(Mage::getStoreConfig('flashy/flashy/active') && !empty($flashy_key) && Mage::getStoreConfig('flashy/flashy/purchase')) {
 
@@ -81,56 +133,72 @@ class Flashy_Integration_Model_Observer
             $account_id = Mage::getStoreConfig('flashy/flashy/flashy_id');
 
             if ($account_id == null) {
-                if ($info['success'] == true) {
-                    $info = $this->flashy->account->info();
 
+                $info = $flashy_helper->tryOrLog( function () {
+                    return $this->flashy->account->info();
+                });
+
+                if ($info['success'] == true) {
                     Mage::getConfig()->saveConfig('flashy/flashy/flashy_id', $info['account']['id'], 'default', 0);
 
                     $account_id = $info['account']['id'];
                 }
             }
 
-            if($order->getCustomerId()) {
+            if($order->getCustomerId())
+            {
                 $customer = Mage::getModel('customer/customer')->load($order->getCustomerId());
-                $h->addLog('step4: customer loaded');
 
-                $contactData = [
-                    'email' => $customer->getEmail(),
-                    'first_name' => $customer->getFirstname(),
-                    'last_name' => $customer->getLastname(),
-                    'gender' => $customer->getGender()
-                ];
-            } else {
-                $billingAddress = $order->getBillingAddress();
-                $h->addLog('step4: billingAddress loaded');
-                $contactData = [
-                    'email' => $billingAddress->getEmail(),
-                    'first_name' => $billingAddress->getFirstname(),
-                    'last_name' => $billingAddress->getLastname(),
-                    'gender' => $billingAddress->getGender()
-                ];
+                $loggedInCustomer = $flashy_helper->extractDataFromCustomer($customer);
+            }
+            else
+            {
+                $loggedInCustomer = [];
             }
 
-            $h->addLog('step5: Contact data ' . print_r($contactData, true));
+            $orderCustomerData = $flashy_helper->extractDataFromOrder($order);
 
-            $this->flashy->contacts->create($contactData);
-            $h->addLog('step6: flashy contact created');
+            $billingData = $flashy_helper->extractDataFromBilling($order->getBillingAddress());
+
+            $contactData = array_merge($loggedInCustomer, $orderCustomerData, $billingData);
+
+
+            $flashy_helper->addLog('Contact info: ');
+            $flashy_helper->addLog($contactData);
+
+            $get = $flashy_helper->tryOrLog( function () use($contactData) {
+                return $this->flashy->contacts->get($contactData['email']);
+            });
+
+            if($get['success'] == true)
+            {
+                $flashy_helper->addLog('Updating contact.');
+                $createOrUpdate = $flashy_helper->tryOrLog( function () use($contactData) {
+                    return $this->flashy->contacts->update($contactData['email'], $contactData);
+                });
+            }
+            else
+            {
+                $flashy_helper->addLog('Creating contact.');
+                $createOrUpdate = $flashy_helper->tryOrLog( function () use($contactData) {
+                    return $this->flashy->contacts->create($contactData);
+                });
+            }
+
+            $flashy_helper->addLog('Response: ');
+            $flashy_helper->addLog($createOrUpdate);
 
             $total = (float) $order->getSubtotal();
-            $h->addLog('step7: order total=' . $total);
 
             $items = $order->getAllItems();
-            $h->addLog('step8: getting order items');
 
             $products = [];
 
             foreach($items as $i):
                 $products[] = $i->getProductId();
             endforeach;
-            $h->addLog('step9: getting product ids');
 
             $currency = Mage::app()->getStore(Mage::app()->getStore()->getStoreId())->getCurrentCurrencyCode();
-            $h->addLog('step10: currency='.$currency);
 
             $data = array(
                 "account_id" => $account_id,
@@ -142,14 +210,15 @@ class Flashy_Integration_Model_Observer
                 "currency"  => $currency
             );
 
-            $h->addLog('step11: data=' . print_r($data, true));
+            $flashy_helper->addLog('Order info: ');
+            $flashy_helper->addLog($data);
 
-            //$this->flashy->api->events->track("Purchase", $data);
-            $track = $this->flashy->thunder->track($account_id, $contactData['email'], "Purchase", $data);
+            $track = $flashy_helper->tryOrLog( function () use($account_id, $contactData, $data) {
+                return $this->flashy->thunder->track($account_id, $contactData['email'], "Purchase", $data);
+            });
 
-            $h->addLog('step12: Purchase sent.');
-            $h->addLog(json_encode($track));
-
+            $flashy_helper->addLog('Response: ');
+            $flashy_helper->addLog($track);
         }
     }
 

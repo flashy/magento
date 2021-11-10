@@ -8,7 +8,7 @@ class Flashy_Integration_Block_Adminhtml_Form_Edit_Tab_General extends Mage_Admi
      */
     protected function _prepareForm()
     {
-        $helper = Mage::helper('flashy');
+        $flashy_helper = Mage::helper('flashy');
         $form = new Varien_Data_Form();
         $form->setHtmlIdPrefix('general_');
         $form->setFieldNameSuffix('general');
@@ -23,15 +23,19 @@ class Flashy_Integration_Block_Adminhtml_Form_Edit_Tab_General extends Mage_Admi
         {            
             $this->flashy = new Flashy_Flashy( Mage::getStoreConfig('flashy/flashy/flashy_key') );
 
-            $info = $this->flashy->account->info();
+            $info = $flashy_helper->tryOrLog( function () {
+                return $this->flashy->account->info();
+            });
 
             if( $info['success'] == true )
             {
                 Mage::getConfig()->saveConfig('flashy/flashy/flashy_id', $info['account']['id'], 'default', 0);
 
                 $catalog_id = Mage::getStoreConfig('flashy/flashy/flashy_catalog');
-                
-                $catalogs = $this->flashy->catalogs->get();
+
+                $catalogs = $flashy_helper->tryOrLog( function () {
+                    return $this->flashy->catalogs->get();
+                });
 
                 foreach ($catalogs['catalogs'] as $catalog)
                 {
@@ -47,8 +51,8 @@ class Flashy_Integration_Block_Adminhtml_Form_Edit_Tab_General extends Mage_Admi
                 {
                     $fieldset->addField('stores', 'select', array(
                         'name'      => 'store',
-                        'label'     => $helper->__('Select Store'),
-                        'title'     => $helper->__('Select Store'),
+                        'label'     => $flashy_helper->__('Select Store'),
+                        'title'     => $flashy_helper->__('Select Store'),
                         'required'  => true,
                         'values'    => Mage::getSingleton('adminhtml/system_store')->getStoreValuesForForm(true, true),
                     ));
@@ -61,7 +65,7 @@ class Flashy_Integration_Block_Adminhtml_Form_Edit_Tab_General extends Mage_Admi
                 }
 
                 $select = array(
-                    'label'     => $helper->__('Catalog'),
+                    'label'     => $flashy_helper->__('Catalog'),
                     'class'     => 'required-entry',
                     'required'  => true,
                     'name'      => 'catalog',
