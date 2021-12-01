@@ -2,6 +2,7 @@
 
 class Flashy_Integration_Block_Adminhtml_Form_Edit_Tab_General extends Mage_Adminhtml_Block_Widget_Form
 {
+    public $flashy;
 
     /**
      * prepare form in tab
@@ -20,14 +21,17 @@ class Flashy_Integration_Block_Adminhtml_Form_Edit_Tab_General extends Mage_Admi
             $this->_redirect('*/*/');
         }
         else
-        {            
-            $this->flashy = new Flashy_Flashy( Mage::getStoreConfig('flashy/flashy/flashy_key') );
+        {
+            $this->flashy = new \Flashy\Flashy(array(
+                'api_key' => Mage::getStoreConfig('flashy/flashy/flashy_key'),
+                'log_path' => Mage::getBaseDir( 'var' ) . '\log\flashy.log'
+            ));
 
             $info = $flashy_helper->tryOrLog( function () {
-                return $this->flashy->account->info();
+                return $this->flashy->account->get();
             });
 
-            if( $info['success'] == true )
+            if( $info->success() == true )
             {
                 Mage::getConfig()->saveConfig('flashy/flashy/flashy_id', $info['account']['id'], 'default', 0);
 

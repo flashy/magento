@@ -19,7 +19,10 @@ class Flashy_Integration_Block_Order extends Mage_Core_Block_Template {
         $flashy_helper = Mage::helper("flashy");
         $flashy_helper->addLog('getOrderDetails');
 
-        $this->flashy = new Flashy_Flashy( Mage::getStoreConfig('flashy/flashy/flashy_key') );
+        $this->flashy = new \Flashy\Flashy(array(
+            'api_key' => Mage::getStoreConfig('flashy/flashy/flashy_key'),
+            'log_path' => Mage::getBaseDir( 'var' ) . '\log\flashy.log'
+        ));
 
         $orderId = Mage::getSingleton('checkout/session')->getLastOrderId();
         $order = Mage::getModel('sales/order')->load($orderId);
@@ -38,28 +41,12 @@ class Flashy_Integration_Block_Order extends Mage_Core_Block_Template {
             $contactData = array_merge($loggedInCustomer, $contactData);
         }
 
-
         $flashy_helper->addLog('Contact info: ');
         $flashy_helper->addLog($contactData);
 
-        $get = $flashy_helper->tryOrLog( function () use($contactData) {
-            return $this->flashy->contacts->get($contactData['email']);
+        $createOrUpdate = $flashy_helper->tryOrLog( function () use($contactData) {
+            return $this->flashy->contacts->create($contactData, 'email', true, true);
         });
-
-        if($get['success'] == true)
-        {
-            $flashy_helper->addLog('Updating contact.');
-            $createOrUpdate = $flashy_helper->tryOrLog( function () use($contactData) {
-                return $this->flashy->contacts->update($contactData['email'], $contactData);
-            });
-        }
-        else
-        {
-            $flashy_helper->addLog('Creating contact.');
-            $createOrUpdate = $flashy_helper->tryOrLog( function () use($contactData) {
-                return $this->flashy->contacts->create($contactData);
-            });
-        }
 
         $flashy_helper->addLog('Response: ');
         $flashy_helper->addLog($createOrUpdate);

@@ -2,6 +2,8 @@
 
 class Flashy_Integration_Model_System_Config_Backend_Key extends Mage_Core_Model_Config_Data
 {
+    public $flashy;
+
     /**
      * @return Mage_Core_Model_Abstract
      * @throws Flashy_Error
@@ -12,13 +14,16 @@ class Flashy_Integration_Model_System_Config_Backend_Key extends Mage_Core_Model
         if($this->getValue() != '') {
 
             $flashy_helper = Mage::helper('flashy');
-            $flashy = new Flashy_Flashy($this->getValue());
+            $this->flashy = new \Flashy\Flashy(array(
+                'api_key' => $this->getValue(),
+                'log_path' => Mage::getBaseDir( 'var' ) . '\log\flashy.log'
+            ));
 
-            $info = $flashy_helper->tryOrLog( function () use($flashy) {
-                return $flashy->account->info();
+            $info = $flashy_helper->tryOrLog( function () {
+                return $this->flashy->account->get();
             });
 
-            if(!$info['success']) {
+            if(!$info->success()) {
                 throw Mage::exception(
                     'Mage_Core', Mage::helper('flashy')->__('Flashy API Key is not valid.')
                 );
@@ -79,21 +84,24 @@ class Flashy_Integration_Model_System_Config_Backend_Key extends Mage_Core_Model
                 );
             }
 
-            $flashy = new Flashy_Flashy($api_key);
+            $this->flashy = new \Flashy\Flashy(array(
+                'api_key' => $api_key,
+                'log_path' => Mage::getBaseDir( 'var' ) . '\log\flashy.log'
+            ));
+
             $flashy_helper = Mage::helper('flashy');
 
-            $connect = $flashy_helper->tryOrLog( function () use($flashy, $data) {
-                return $flashy->account->connect($data);
+            $connect = $flashy_helper->tryOrLog( function () use($data) {
+                return $this->flashy->platforms->connect($data);
             });
 
-            $value = intval($connect['success']);
-
-            $info = $flashy_helper->tryOrLog( function () use($flashy) {
-                return $flashy->account->info();
+            $info = $flashy_helper->tryOrLog( function () {
+                return $this->flashy->account->get();
             });
 
-            if( $info['success'] == true ) {
+            if( isset($info) && $info->success() == true ) {
                 $flashy_id = $info['account']['id'];
+                $value = 1;
             }
         }
         Mage::getConfig()->saveConfig('flashy/flashy/flashy_connected', $value, $scope, $scope_id);

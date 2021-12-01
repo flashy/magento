@@ -1,107 +1,164 @@
 <?php
-require_once Mage::getBaseDir( 'lib' ) . '/Flashy/Flashy/Thunder.php';
-require_once Mage::getBaseDir( 'lib' ) . '/Flashy/Flashy/Account.php';
-require_once Mage::getBaseDir( 'lib' ) . '/Flashy/Flashy/Import.php';
-require_once Mage::getBaseDir( 'lib' ) . '/Flashy/Flashy/Catalogs.php';
-require_once Mage::getBaseDir( 'lib' ) . '/Flashy/Flashy/Contacts.php';
-require_once Mage::getBaseDir( 'lib' ) . '/Flashy/Flashy/Lists.php';
-require_once Mage::getBaseDir( 'lib' ) . '/Flashy/Flashy/Sms.php';
-require_once Mage::getBaseDir( 'lib' ) . '/Flashy/Flashy/Events.php';
-require_once Mage::getBaseDir( 'lib' ) . '/Flashy/Flashy/Exceptions.php';
 
-class Flashy_Flashy {
-    
-    public $apikey;
-    public $ch;
-    public $root = 'https://flashyapp.com/api/';
-    public $tracker = 'https://track.flashyapp.com/events/';
-    public $debug = false;
+namespace Flashy;
 
-    public static $error_map = array(
-        "Invalid_Key" => "Flashy_Invalid_Key",
-    );
+use Flashy\Exceptions\FlashyException;
+use Flashy\Services\Account;
+use Flashy\Services\Contacts;
+use Flashy\Services\Events;
+use Flashy\Services\Lists;
+use Flashy\Services\Messages;
+use Flashy\Services\Platforms;
 
-    public function __construct($apikey=null) {
-        if(!$apikey) $apikey = getenv('FLASHY_APIKEY');
+/**
+ * @property Account account
+ * @property Platforms platforms
+ * @property Contacts contacts
+ * @property Lists lists
+ * @property Events events
+ * @property Messages messages
+ */
+class Flashy
+{
+    /**
+     * @var array
+     */
+    protected $config = [];
 
-        if(!$apikey) throw new Flashy_Error('You must provide a Flashy API key');
+    /**
+     * @var Client
+     */
+    public $client;
 
-        $this->apikey = $apikey;
+    /**
+     * @var array
+     */
+    protected $services = [];
 
-        $this->ch = curl_init();
-        curl_setopt($this->ch, CURLOPT_USERAGENT, 'Flashy-PHP/1.0.54');
-        curl_setopt($this->ch, CURLOPT_SSL_VERIFYPEER, false);
-        curl_setopt($this->ch, CURLOPT_POST, true);
-        curl_setopt($this->ch, CURLOPT_FOLLOWLOCATION, true);
-        curl_setopt($this->ch, CURLOPT_HEADER, false);
-        curl_setopt($this->ch, CURLOPT_RETURNTRANSFER, true);
-        curl_setopt($this->ch, CURLOPT_CONNECTTIMEOUT, 30);
-        curl_setopt($this->ch, CURLOPT_TIMEOUT, 600);
+    /**
+     * Flashy constructor.
+     * @param $config
+     * @throws FlashyException
+     */
+    public function __construct($config)
+    {
+        $this->loadDependencies();
 
-        $this->thunder = new Flashy_Thunder($this);
-        $this->account = new Flashy_Account($this);
-        $this->catalogs = new Flashy_Catalogs($this);
-        $this->import = new Flashy_Import($this);
-        $this->events = new Flashy_Events($this);
-        $this->sms = new Flashy_Sms($this);
-        $this->contacts = new Flashy_Contacts($this);
-        $this->lists = new Flashy_Lists($this);
-    }
+        $this->config = array_merge($this->config, $config);
 
-    public function __destruct() {
-        curl_close($this->ch);
-    }
-
-    public function call($url, $params, $parent = "root") {
-        $params['key'] = $this->apikey;
-
-        $params = json_encode($params);
-
-        $endpoint = ( $parent == "root" ) ? rtrim($this->root, '/') . '/' : rtrim($this->tracker, '/') . '/';
-
-        $ch = $this->ch;
-
-        curl_setopt($ch, CURLOPT_URL, $endpoint . $url);
-        curl_setopt($ch, CURLOPT_HTTPHEADER, array('Content-Type: application/json'));
-        curl_setopt($ch, CURLOPT_POSTFIELDS, $params);
-        curl_setopt($ch, CURLOPT_VERBOSE, $this->debug);
-
-        $start = microtime(true);
-
-        $this->log('Call to ' . $endpoint . $url . ' ' . $params);
-
-        $response_body = curl_exec($ch);
-        $info = curl_getinfo($ch);
-
-        $time = microtime(true) - $start;
-
-        $this->log('Completed in ' . number_format($time * 1000, 2) . 'ms');
-        $this->log('Got response: ' . $response_body);
-
-        if(curl_error($ch)) {
-            throw new Flashy_HttpError("API call to $url failed: " . curl_error($ch));
+        if( !isset($this->config['api_key']) )
+        {
+            throw new FlashyException("Flashy API Key missing");
         }
 
-        $result = json_decode($response_body, true);
+        $this->loadConfig();
 
-        if($result === null) throw new Flashy_Error('We were unable to decode the JSON response from the Flashy API: ' . $response_body);
-        
-        if(floor($info['http_code'] / 100) >= 4) {
-            throw $this->castError($result);
+        $this->client = new Client($this->config['api_key']);
+    }
+
+    /**
+     * Set Config Options
+     */
+    private function loadConfig()
+    {
+        if( isset($this->config['log_path']) )
+        {
+            Helper::$path = $this->config['log_path'];
+        }
+    }
+
+    /**
+     * @param $service
+     * @return mixed
+     * @throws FlashyException
+     */
+    public function __get($service)
+    {
+        $service = strtolower($service);
+
+        if( isset($this->services[$service]) )
+        {
+            return $this->getService($service);
         }
 
-        return $result;
+        if( !class_exists($this->getServiceNamespace($service)) && file_exists($this->getServicePath($service)) )
+        {
+            require_once($this->getServicePath($service));
+        }
+
+        if( class_exists($this->getServiceNamespace($service)) )
+        {
+            $serviceName = $this->getServiceNamespace($service);
+
+            $this->services[$service] = new $serviceName($this);
+
+            return $this->getService($service);
+        }
+
+        throw new FlashyException("Service " . $this->getServiceName($service) . " not exists");
     }
 
-    public function castError($result) {
-        if(!isset($result['success']) || $result['success'] !== true) throw new Flashy_Error('We received an unexpected error: ' . json_encode($result));
-
-        $class = (isset(self::$error_map[$result['name']])) ? self::$error_map[$result['name']] : 'Flashy_Error';
-
-        return new $class($result['message'], $result['code']);
+    /**
+     * @param $service
+     * @return string
+     */
+    private function getServiceNamespace($service)
+    {
+        return "Flashy\\Services\\" . $this->getServiceName($service);
     }
 
-    public function log($msg) {
-        if($this->debug) error_log($msg);
+    /**
+     * @param $service
+     * @return string
+     */
+    public function getServiceName($service)
+    {
+        return ucfirst($service);
     }
+
+    /**
+     * @param $service
+     * @return mixed
+     */
+    private function getService($service)
+    {
+        return $this->services[$service];
+    }
+
+    /**
+     * @param $service
+     * @return string
+     */
+    public function getServicePath($service)
+    {
+        return __DIR__ . "/Services/" . $this->getServiceName($service) . ".php";
+    }
+
+    /**
+     * Load Flashy Dependencies - auto loader for non composer projects
+     */
+    private function loadDependencies()
+    {
+        $dependencies = ['Helper', 'Response', 'Client'];
+
+        foreach( $dependencies as $dependency )
+        {
+            if( !class_exists('Flashy\\' . $dependency) )
+                require_once(__DIR__ . '/' . $dependency . '.php');
+        }
+
+        if( !class_exists('Flashy\\FlashyException') )
+        {
+            $path = __DIR__ . "/Exceptions/";
+
+            foreach(scandir($path) as $filename)
+            {
+                if ( is_file($path . $filename) )
+                {
+                    require_once $path . $filename;
+                }
+            }
+        }
+    }
+
 }
