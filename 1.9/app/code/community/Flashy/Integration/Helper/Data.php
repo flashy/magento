@@ -2,6 +2,34 @@
 
 class Flashy_Integration_Helper_Data extends Mage_Core_Helper_Abstract {
 
+    public function __construct()
+    {
+        $this->_includeLibFiles();
+    }
+
+    protected function _includeLibFiles()
+    {
+        $this->_recursiveRequireOnce(Mage::getBaseDir('lib') . DS . 'Flashy');
+    }
+
+    protected function _recursiveRequireOnce($path)
+    {
+        $iterator = new RecursiveIteratorIterator(
+            new RecursiveDirectoryIterator($path, RecursiveDirectoryIterator::SKIP_DOTS),
+            RecursiveIteratorIterator::SELF_FIRST
+        );
+
+        foreach ($iterator as $item) {
+            if ($item->isDir()) {
+                // if it's a directory, continue iterating
+                continue;
+            } elseif (substr($item->getFilename(), -4) === '.php') {
+                // only include php files
+                require_once $item->getRealPath();
+            }
+        }
+    }
+
     public function getFlashyId()
     {
         if(Mage::getStoreConfig('flashy/flashy/active')){
@@ -139,29 +167,29 @@ class Flashy_Integration_Helper_Data extends Mage_Core_Helper_Abstract {
      */
     public static function tryOrLog(Closure $func)
     {
-        $flashy_helper = Mage::helper("flashy");
+        // $flashy_helper = Mage::helper("flashy");
 
-        if( phpversion() > 7 )
-        {
-            try {
-                return $func();
-            }
-            catch ( \Throwable $e )
-            {
-                $flashy_helper->addLog("Was not able to do something safely: {$e->getMessage()} \n " . $e->getTraceAsString());
-            }
-        }
-        else
-        {
-            try {
-                return $func();
-            }
-            catch ( Exception $e )
-            {
-                $flashy_helper->addLog("Was not able to do something safely: {$e->getMessage()} \n " . $e->getTraceAsString());
-            }
-        }
+        // if( phpversion() > 7 )
+        // {
+        //     try {
+        //         return $func();
+        //     }
+        //     catch ( \Throwable $e )
+        //     {
+        //         $flashy_helper->addLog("Was not able to do something safely: {$e->getMessage()} \n " . $e->getTraceAsString());
+        //     }
+        // }
+        // else
+        // {
+        //     try {
+        //         return $func();
+        //     }
+        //     catch ( Exception $e )
+        //     {
+        //         $flashy_helper->addLog("Was not able to do something safely: {$e->getMessage()} \n " . $e->getTraceAsString());
+        //     }
+        // }
 
-        return null;
+        // return null;
     }
 }

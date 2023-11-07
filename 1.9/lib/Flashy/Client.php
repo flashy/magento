@@ -21,7 +21,7 @@ class Client
     /**
      * @var string
      */
-    protected $base_path = 'https://api.flashy.app/';
+    protected $base_path = 'https://api.flashy.dev/';
 
     /**
      * @var bool Debug Mode
